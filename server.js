@@ -15,6 +15,7 @@ const sttService = require('./services/sttService');
 const backendService = require('./services/backendService');
 const notificationService = require('./services/notificationService');
 const downloadService = require('./services/downloadService');
+const recommendationService = require('./services/recommendationService');
 const https = require('https');
 
 const app = express();
@@ -673,6 +674,26 @@ app.post('/whatsapp', async (req, res) => {
 // GET /health - Simple health check endpoint
 app.get('/health', (req, res) => {
   res.json({ status: 'ok' });
+});
+
+// POST /api/provider-recommendation - Recommend the best provider for a trip block
+app.post('/api/provider-recommendation', (req, res) => {
+  const { tripBlock, providers } = req.body;
+
+  if (!tripBlock) {
+    return res.status(400).json({ error: 'Missing "tripBlock" in request body.' });
+  }
+  if (!providers || !Array.isArray(providers)) {
+    return res.status(400).json({ error: 'Missing or invalid "providers" array in request body.' });
+  }
+
+  try {
+    const result = recommendationService.recommendProvider(tripBlock, providers);
+    return res.json(result);
+  } catch (error) {
+    console.error('Error in /api/provider-recommendation:', error);
+    return res.status(500).json({ error: error.message || 'An error occurred during recommendation.' });
+  }
 });
 
 // POST /parse-request - Parse user request text using Gemini 2.5 Flash

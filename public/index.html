@@ -1,0 +1,908 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TripBlock Request Processing Center</title>
+  <meta name="description" content="AI-Powered Follow-Up Question System and Request Completion Engine for TripBlock.">
+  <!-- Load Outfit font from Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --bg-color: #080c14;
+      --panel-bg: rgba(13, 20, 35, 0.6);
+      --border-color: rgba(255, 255, 255, 0.08);
+      --primary-color: #6366f1; /* Indigo */
+      --primary-glow: rgba(99, 102, 241, 0.15);
+      --success-color: #10b981; /* Emerald */
+      --success-glow: rgba(16, 185, 129, 0.15);
+      --warning-color: #f59e0b; /* Amber */
+      --warning-glow: rgba(245, 158, 11, 0.15);
+      --danger-color: #ef4444; /* Rose */
+      --text-main: #f3f4f6;
+      --text-muted: #9ca3af;
+      --whatsapp-green: #25d366;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Outfit', sans-serif;
+      background-color: var(--bg-color);
+      background-image: 
+        radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.1) 0px, transparent 50%),
+        radial-gradient(at 100% 100%, rgba(16, 185, 129, 0.08) 0px, transparent 50%);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+    }
+
+    /* Header styling */
+    header {
+      background: rgba(8, 12, 20, 0.8);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border-color);
+      padding: 1.25rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .logo-container {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .logo-dot {
+      width: 12px;
+      height: 12px;
+      background-color: var(--primary-color);
+      border-radius: 50%;
+      box-shadow: 0 0 12px var(--primary-color);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0% { transform: scale(0.9); box-shadow: 0 0 8px rgba(99, 102, 241, 0.5); }
+      50% { transform: scale(1.1); box-shadow: 0 0 16px rgba(99, 102, 241, 0.8); }
+      100% { transform: scale(0.9); box-shadow: 0 0 8px rgba(99, 102, 241, 0.5); }
+    }
+
+    header h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      letter-spacing: -0.025em;
+      background: linear-gradient(135deg, #fff 30%, var(--text-muted) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .controls-header {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    select, input, button {
+      font-family: inherit;
+      color: inherit;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 0.5rem 1rem;
+      font-size: 0.9rem;
+      outline: none;
+      transition: all 0.2s ease;
+    }
+
+    select:focus, input:focus {
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 3px var(--primary-glow);
+    }
+
+    .btn {
+      cursor: pointer;
+      font-weight: 500;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .btn:hover {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .btn-primary {
+      background: var(--primary-color);
+      border-color: var(--primary-color);
+    }
+
+    .btn-primary:hover {
+      background: #4f46e5;
+      border-color: #4f46e5;
+      box-shadow: 0 0 12px rgba(99, 102, 241, 0.3);
+    }
+
+    .btn-danger {
+      background: rgba(239, 68, 68, 0.15);
+      border-color: rgba(239, 68, 68, 0.3);
+      color: #f87171;
+    }
+
+    .btn-danger:hover {
+      background: rgba(239, 68, 68, 0.3);
+      border-color: rgba(239, 68, 68, 0.5);
+    }
+
+    /* Main Layout Grid */
+    main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 360px 1fr 380px;
+      gap: 1.5rem;
+      padding: 1.5rem;
+      max-width: 1600px;
+      width: 100%;
+      margin: 0 auto;
+      height: calc(100vh - 75px);
+      min-height: 500px;
+    }
+
+    @media (max-width: 1200px) {
+      main {
+        grid-template-columns: 1fr;
+        height: auto;
+        overflow: visible;
+      }
+    }
+
+    /* Common Card / Panel styling */
+    .panel {
+      background: var(--panel-bg);
+      backdrop-filter: blur(20px);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    }
+
+    .panel-header {
+      padding: 1.25rem;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(255, 255, 255, 0.01);
+    }
+
+    .panel-title {
+      font-size: 1.05rem;
+      font-weight: 600;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    /* Left Column: WhatsApp Panel */
+    .whatsapp-container {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+
+    .user-select-bar {
+      padding: 0.75rem 1rem;
+      background: rgba(0, 0, 0, 0.15);
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    #phoneSelect {
+      flex: 1;
+    }
+
+    .chat-history {
+      flex: 1;
+      padding: 1.25rem;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      background: rgba(0, 0, 0, 0.2);
+    }
+
+    .chat-bubble {
+      max-width: 80%;
+      padding: 0.75rem 1rem;
+      border-radius: 12px;
+      font-size: 0.9rem;
+      line-height: 1.4;
+      position: relative;
+      animation: bubbleFade 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    @keyframes bubbleFade {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .chat-bubble.farmer {
+      align-self: flex-end;
+      background: var(--whatsapp-green);
+      color: #0b2d15;
+      border-top-right-radius: 4px;
+      font-weight: 500;
+    }
+
+    .chat-bubble.ai {
+      align-self: flex-start;
+      background: rgba(255, 255, 255, 0.08);
+      color: #e5e7eb;
+      border-top-left-radius: 4px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .chat-bubble-meta {
+      font-size: 0.7rem;
+      margin-top: 0.25rem;
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      gap: 0.25rem;
+      opacity: 0.6;
+    }
+
+    .chat-input-area {
+      padding: 1rem;
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      background: rgba(0, 0, 0, 0.1);
+    }
+
+    .input-row {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .input-row input {
+      flex: 1;
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .quick-simulate-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+    }
+
+    .btn-quick {
+      padding: 0.3rem 0.6rem;
+      font-size: 0.75rem;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.03);
+      border-color: rgba(255, 255, 255, 0.05);
+      color: var(--text-muted);
+      cursor: pointer;
+    }
+
+    .btn-quick:hover {
+      background: rgba(99, 102, 241, 0.1);
+      border-color: rgba(99, 102, 241, 0.3);
+      color: #fff;
+    }
+
+    /* Center Column: Reasoning & Progress */
+    .reasoning-container {
+      padding: 1.5rem;
+      overflow-y: auto;
+      gap: 1.5rem;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Radial Progress Gauge */
+    .progress-section {
+      display: flex;
+      align-items: center;
+      justify-content: space-around;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 1.25rem;
+    }
+
+    .gauge-wrapper {
+      position: relative;
+      width: 120px;
+      height: 120px;
+    }
+
+    .gauge-svg {
+      transform: rotate(-90deg);
+      width: 100%;
+      height: 100%;
+    }
+
+    .gauge-track {
+      fill: none;
+      stroke: rgba(255, 255, 255, 0.03);
+      stroke-width: 10;
+    }
+
+    .gauge-fill {
+      fill: none;
+      stroke: var(--primary-color);
+      stroke-width: 10;
+      stroke-linecap: round;
+      transition: stroke-dashoffset 0.6s ease;
+      filter: drop-shadow(0 0 6px var(--primary-color));
+    }
+
+    .gauge-percentage {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .progress-metrics {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .metric-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-size: 0.8rem;
+      font-weight: 600;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-color);
+      padding: 0.25rem 0.6rem;
+      border-radius: 20px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .metric-badge.success {
+      background: var(--success-glow);
+      color: var(--success-color);
+      border-color: rgba(16, 185, 129, 0.3);
+    }
+
+    .metric-badge.warning {
+      background: var(--warning-glow);
+      color: var(--warning-color);
+      border-color: rgba(245, 158, 11, 0.3);
+    }
+
+    /* Understanding Log */
+    .understanding-section h3, .decision-section h3 {
+      font-size: 0.9rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      margin-bottom: 0.75rem;
+    }
+
+    .understanding-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.65rem;
+    }
+
+    .understanding-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--border-color);
+      padding: 0.75rem 1rem;
+      border-radius: 10px;
+      font-size: 0.9rem;
+    }
+
+    .understanding-item.present {
+      border-left: 3px solid var(--success-color);
+    }
+
+    .understanding-item.missing {
+      border-left: 3px solid var(--danger-color);
+      opacity: 0.8;
+    }
+
+    .status-icon {
+      font-weight: 700;
+      font-size: 1rem;
+    }
+
+    .status-icon.check { color: var(--success-color); }
+    .status-icon.cross { color: #ef4444; }
+
+    /* Decision block */
+    .decision-section {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .decision-text {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #fff;
+    }
+
+    .next-step-box {
+      background: rgba(16, 185, 129, 0.08);
+      border: 1px dashed rgba(16, 185, 129, 0.4);
+      padding: 0.85rem;
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+
+    .next-step-title {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      font-weight: 700;
+      color: var(--success-color);
+      letter-spacing: 0.05em;
+    }
+
+    .next-step-value {
+      font-size: 0.9rem;
+      font-weight: 500;
+      color: #e5e7eb;
+    }
+
+    /* Right Column: JSON viewer */
+    .json-container {
+      padding: 1.25rem;
+      overflow-y: auto;
+      background: #040810;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.85rem;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      color: #93c5fd;
+    }
+
+    .json-key { color: #f43f5e; }
+    .json-value-str { color: #34d399; }
+    .json-value-num { color: #fbbf24; }
+    .json-value-bool { color: #60a5fa; }
+    .json-value-null { color: #6b7280; }
+
+    /* Helper empty state classes */
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 3rem 1.5rem;
+      color: var(--text-muted);
+      height: 100%;
+    }
+
+    .empty-icon {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+      opacity: 0.3;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header>
+    <div class="logo-container">
+      <div class="logo-dot"></div>
+      <h1>TripBlock AI Request Processing Center</h1>
+    </div>
+    
+    <div class="controls-header">
+      <button class="btn btn-danger" id="resetBtn" onclick="resetConversations()" title="Clear all active sessions">
+        🔄 Reset Sessions
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Grid -->
+  <main>
+    
+    <!-- Left Column: WhatsApp Panel -->
+    <div class="panel whatsapp-container">
+      <div class="panel-header">
+        <div class="panel-title">💬 WhatsApp Simulator</div>
+        <div class="metric-badge warning" style="font-size: 0.7rem;">Live Sandbox</div>
+      </div>
+      
+      <!-- Selector for active phone session -->
+      <div class="user-select-bar">
+        <select id="phoneSelect" onchange="selectUser(this.value)" aria-label="Select farmer phone number">
+          <!-- Populated dynamically -->
+        </select>
+        <button class="btn btn-primary" onclick="createNewSimUser()" style="padding: 0.5rem;" title="Simulate a new farmer contact">+</button>
+      </div>
+
+      <!-- Chat History -->
+      <div class="chat-history" id="chatHistory">
+        <!-- Message bubbles populated dynamically -->
+        <div class="empty-state">
+          <div class="empty-icon">💬</div>
+          <p>No active messages. Choose simulated options below or type to start a conversational request.</p>
+        </div>
+      </div>
+
+      <!-- Interactive Send / Sim Controls -->
+      <div class="chat-input-area">
+        <div class="input-row">
+          <input type="text" id="chatInput" placeholder="Reply to AI or start request (e.g. '3 acre')..." onkeydown="if(event.key==='Enter') sendMessage()" aria-label="WhatsApp reply input">
+          <button class="btn btn-primary" onclick="sendMessage()" id="sendBtn">Send</button>
+        </div>
+        
+        <div class="quick-simulate-row">
+          <span style="font-size: 0.7rem; color: var(--text-muted); width: 100%; margin-bottom: 0.2rem;">🎙️ Simulate Voice Note Inputs:</span>
+          <button class="btn-quick" onclick="simulateVoice('Kal tractor chahiye')">"Kal tractor chahiye"</button>
+          <button class="btn-quick" onclick="simulateVoice('3 acre')">"3 acre"</button>
+          <button class="btn-quick" onclick="simulateVoice('Transport Delhi tak chahiye sham ko')">"Transport to Delhi..."</button>
+          <button class="btn-quick" onclick="simulateVoice('5 workers chahiye parso')">"5 workers parso..."</button>
+          <button class="btn-quick" onclick="simulateVoice('Mujhe paani ka tanker chahiye')">"Water tanker..."</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Center Column: AI Reasoning & Progress -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">🧠 AI Reasoning & Progress</div>
+      </div>
+      
+      <div class="reasoning-container" id="reasoningContainer">
+        <!-- Empty state or content -->
+        <div class="empty-state">
+          <div class="empty-icon">🧠</div>
+          <p>Select a WhatsApp conversation to analyze details, check reasoning states, and review completion progress.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Column: JSON State Viewer -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">📄 Live Session JSON State</div>
+      </div>
+      
+      <div class="json-container" id="jsonViewer">
+        {
+          "info": "Waiting for active conversation..."
+        }
+      </div>
+    </div>
+
+  </main>
+
+  <script>
+    let activePhone = '';
+    let pollingInterval = null;
+
+    // Load list of sessions and update UI
+    async function loadConversations(autoSelect = false) {
+      try {
+        const response = await fetch('/api/conversations');
+        const data = await response.json();
+        
+        const select = document.getElementById('phoneSelect');
+        const currentOptions = Array.from(select.options).map(o => o.value);
+        
+        const phones = Object.keys(data);
+        
+        // Re-populate select if keys changed
+        if (JSON.stringify(currentOptions.sort()) !== JSON.stringify(phones.sort())) {
+          select.innerHTML = '';
+          if (phones.length === 0) {
+            const opt = document.createElement('option');
+            opt.value = '';
+            opt.text = '-- No Active Farmers --';
+            select.appendChild(opt);
+            activePhone = '';
+          } else {
+            phones.forEach(p => {
+              const opt = document.createElement('option');
+              opt.value = p;
+              opt.text = `Farmer (${p})`;
+              select.appendChild(opt);
+            });
+            
+            if (autoSelect || !activePhone || !data[activePhone]) {
+              activePhone = phones[0];
+            }
+          }
+        }
+        
+        updateDetails(data[activePhone]);
+      } catch (err) {
+        console.error('Error fetching conversations:', err);
+      }
+    }
+
+    // Select specific user
+    function selectUser(phone) {
+      activePhone = phone;
+      loadConversations();
+    }
+
+    // Generate new simulated phone
+    function createNewSimUser() {
+      const rand = Math.floor(1000 + Math.random() * 9000);
+      const newPhone = `+9198765${rand}`;
+      activePhone = newPhone;
+      
+      const select = document.getElementById('phoneSelect');
+      const opt = document.createElement('option');
+      opt.value = newPhone;
+      opt.text = `Farmer (${newPhone})`;
+      select.appendChild(opt);
+      select.value = newPhone;
+
+      updateDetails(null);
+      // Empty input
+      document.getElementById('chatInput').value = '';
+    }
+
+    // Reset all sessions
+    async function resetConversations() {
+      if (confirm('Clear all conversation histories and reset system?')) {
+        await fetch('/api/reset-conversations', { method: 'POST' });
+        activePhone = '';
+        loadConversations(true);
+      }
+    }
+
+    // Format JSON with styles
+    function syntaxHighlight(json) {
+      if (typeof json !== 'string') {
+        json = JSON.stringify(json, undefined, 2);
+      }
+      json = json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+-]?\d+)?)/g, function (match) {
+        let cls = 'json-value-num';
+        if (/^"/.test(match)) {
+          if (/:$/.test(match)) {
+            cls = 'json-key';
+          } else {
+            cls = 'json-value-str';
+          }
+        } else if (/true|false/.test(match)) {
+          cls = 'json-value-bool';
+        } else if (/null/.test(match)) {
+          cls = 'json-value-null';
+        }
+        return '<span class="' + cls + '">' + match + '</span>';
+      });
+    }
+
+    // Update center and right panels with active session details
+    function updateDetails(session) {
+      const chatBox = document.getElementById('chatHistory');
+      const reasoningBox = document.getElementById('reasoningContainer');
+      const jsonBox = document.getElementById('jsonViewer');
+
+      if (!session) {
+        chatBox.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-icon">💬</div>
+            <p>Ready to simulate. Send a request to begin the interactive flow.</p>
+          </div>
+        `;
+        reasoningBox.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-icon">🧠</div>
+            <p>Awaiting user input. Start typing on the left to activate AI reasoning.</p>
+          </div>
+        `;
+        jsonBox.innerHTML = '{\n  "status": "awaiting_init"\n}';
+        return;
+      }
+
+      // 1. WhatsApp Chat logs
+      if (session.conversationHistory && session.conversationHistory.length > 0) {
+        chatBox.innerHTML = session.conversationHistory.map(msg => {
+          const isFarmer = msg.sender === 'farmer';
+          const timeStr = new Date(msg.timestamp || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          const voiceIcon = msg.isVoice ? '🎙️ ' : '';
+          return `
+            <div class="chat-bubble ${isFarmer ? 'farmer' : 'ai'}">
+              ${voiceIcon}${msg.text}
+              <div class="chat-bubble-meta">
+                <span>${timeStr}</span>
+                ${isFarmer ? '✓✓' : ''}
+              </div>
+            </div>
+          `;
+        }).join('');
+        // Scroll to bottom
+        chatBox.scrollTop = chatBox.scrollHeight;
+      }
+
+      // 2. Center Panel: Progress & Reasoning
+      const pct = session.completionPercentage || 0;
+      const strokeOffset = 314 - (314 * pct) / 100;
+      
+      const statusBadgeClass = session.status === 'completed' ? 'success' : 'warning';
+      const statusBadgeText = session.status === 'completed' ? 'Complete' : 'Incomplete';
+      
+      let stepsHtml = '';
+      if (session.reasoning && session.reasoning.steps) {
+        stepsHtml = session.reasoning.steps.map(step => `
+          <div class="understanding-item ${step.success ? 'present' : 'missing'}">
+            <span>${step.label}</span>
+            <span class="status-icon ${step.success ? 'check' : 'cross'}">${step.success ? '✓' : '✗'}</span>
+          </div>
+        `).join('');
+      }
+
+      const bridgeBox = session.status === 'completed' ? `
+        <div class="next-step-box">
+          <div class="next-step-title">Grouping Engine Sync</div>
+          <div class="next-step-value">Finding matching farmers for consolidations...</div>
+        </div>
+      ` : '';
+
+      reasoningBox.innerHTML = `
+        <div class="progress-section">
+          <div class="gauge-wrapper">
+            <svg class="gauge-svg">
+              <circle class="gauge-track" cx="60" cy="60" r="50"></circle>
+              <circle class="gauge-fill" cx="60" cy="60" r="50" style="stroke-dasharray: 314; stroke-dashoffset: ${strokeOffset};"></circle>
+            </svg>
+            <div class="gauge-percentage">${pct}%</div>
+          </div>
+          
+          <div class="progress-metrics">
+            <span class="metric-badge ${statusBadgeClass}">${statusBadgeText}</span>
+            <span class="metric-badge success">Confidence: ${Math.round((session.confidence || 0.85)*100)}%</span>
+          </div>
+        </div>
+
+        <div class="understanding-section">
+          <h3>AI Extraction Log</h3>
+          <div class="understanding-list">
+            ${stepsHtml}
+          </div>
+        </div>
+
+        <div class="decision-section">
+          <h3>Completion Engine Decision</h3>
+          <div class="decision-text">${session.reasoning?.decision || 'No active decision.'}</div>
+          ${bridgeBox}
+        </div>
+      `;
+
+      // 3. Right Panel: JSON State
+      jsonBox.innerHTML = syntaxHighlight(session);
+    }
+
+    // Send messages from simulator
+    async function sendMessage() {
+      const input = document.getElementById('chatInput');
+      const text = input.value.trim();
+      if (!text) return;
+
+      if (!activePhone) {
+        createNewSimUser();
+      }
+
+      input.value = '';
+
+      // Optimistic update of chat UI
+      const chatBox = document.getElementById('chatHistory');
+      const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      chatBox.innerHTML += `
+        <div class="chat-bubble farmer">
+          ${text}
+          <div class="chat-bubble-meta">
+            <span>${timeStr}</span>
+            ✓✓
+          </div>
+        </div>
+      `;
+      chatBox.scrollTop = chatBox.scrollHeight;
+
+      try {
+        const response = await fetch('/api/simulate-message', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone: activePhone, text: text, isVoice: false })
+        });
+        const data = await response.json();
+        
+        updateDetails(data.session);
+        loadConversations();
+      } catch (err) {
+        console.error('Failed to send simulated message:', err);
+      }
+    }
+
+    // Simulate sending voice transcripts
+    async function simulateVoice(transcriptText) {
+      if (!activePhone) {
+        createNewSimUser();
+      }
+
+      const chatBox = document.getElementById('chatHistory');
+      const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      chatBox.innerHTML += `
+        <div class="chat-bubble farmer">
+          🎙️ ${transcriptText}
+          <div class="chat-bubble-meta">
+            <span>${timeStr}</span>
+            ✓✓
+          </div>
+        </div>
+      `;
+      chatBox.scrollTop = chatBox.scrollHeight;
+
+      try {
+        const response = await fetch('/api/simulate-message', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone: activePhone, text: transcriptText, isVoice: true })
+        });
+        const data = await response.json();
+        
+        updateDetails(data.session);
+        loadConversations();
+      } catch (err) {
+        console.error('Failed to simulate voice input:', err);
+      }
+    }
+
+    // Initial load and polling setup
+    window.onload = () => {
+      createNewSimUser();
+      loadConversations();
+      
+      // Auto-poll every 1.5 seconds to synchronize active state updates (e.g. from Twilio WhatsApp webhook)
+      pollingInterval = setInterval(() => {
+        loadConversations();
+      }, 1500);
+    };
+
+    window.onunload = () => {
+      if (pollingInterval) clearInterval(pollingInterval);
+    };
+  </script>
+</body>
+</html>

@@ -171,7 +171,7 @@ async function runTests() {
     };
     const res = await postURLEncoded('/whatsapp', payload);
     console.log('  Status:', res.statusCode);
-    const bodyMatch = res.body.includes('सफलतापूर्वक दर्ज') && res.body.includes('19.076') && res.body.includes('72.8777');
+    const bodyMatch = res.body.includes('सफलतापूर्वक दर्ज') && res.body.includes('Mumbai') && res.body.includes('Maharashtra');
     console.log('  Body contains completion confirmation:', bodyMatch);
 
     if (res.statusCode === 200 && bodyMatch) {

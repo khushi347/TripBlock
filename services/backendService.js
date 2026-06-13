@@ -14,7 +14,7 @@ class BackendService {
    * @param {string} params.requestedTime - Extracted requested ISO time
    * @returns {Promise<object>} Backend response including success status and group details
    */
-  async submitRequest({ phone, item, quantity, requestedTime }) {
+  async submitRequest({ phone, item, quantity, requestedTime, location }) {
     // Production integration example:
     // -------------------------------------------------------------
     // const axios = require('axios');
@@ -22,13 +22,14 @@ class BackendService {
     //   phone,
     //   item,
     //   quantity,
-    //   requestedTime
+    //   requestedTime,
+    //   location
     // });
     // return response.data;
     // -------------------------------------------------------------
 
     // Mock implementation for hackathon:
-    console.log('[BackendService] Submitting request to backend:', { phone, item, quantity, requestedTime });
+    console.log('[BackendService] Submitting request to backend:', { phone, item, quantity, requestedTime, location });
     
     return {
       success: true,

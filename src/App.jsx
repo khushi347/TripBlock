@@ -1,13 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
-// --- MOCK DATA MATCHING FARMER REQUIREMENTS ---
+// --- MOCK DATA FOR DYNAMIC LOGISTICS & FORWARDING ---
 const INITIAL_REQUESTS = [
-  { id: "REQ-201", name: "Ganesh", village: "Sanchi", service: "Water Tanker • 5000L", icon: "tanker", time: "2 minutes ago", status: "Pending" },
-  { id: "REQ-202", name: "Amara", village: "Mandla", service: "Tractor Rental • Harvesting", icon: "tractor", time: "12 minutes ago", status: "Grouped" },
-  { id: "REQ-203", name: "Kavi", village: "Bilaspur", service: "Fertilizer • 20 Bags", icon: "seed", time: "16 minutes ago", status: "Pending" },
-  { id: "REQ-204", name: "Raj", village: "Sehore", service: "Cold Storage • 2 Tons", icon: "transport", time: "45 minutes ago", status: "Completed" },
-  { id: "REQ-205", name: "Suresh", village: "Sehore", service: "Tractor Repair • Engine", icon: "mechanic", time: "1 hour ago", status: "Pending" },
-  { id: "REQ-206", name: "Hari", village: "Mandla", service: "Crop Transport • 5 Tons", icon: "transport", time: "2 hours ago", status: "Grouped" }
+  { id: "REQ-201", name: "Ganesh", village: "Sanchi", service: "Water Tanker", quantity: "5,000 Liters", icon: "tanker", time: "2 minutes ago", status: "Pending" },
+  { id: "REQ-202", name: "Amara", village: "Mandla", service: "Tractor Rental", quantity: "3 Acres (Harvesting)", icon: "tractor", time: "12 minutes ago", status: "Grouped" },
+  { id: "REQ-203", name: "Kavi", village: "Bilaspur", service: "Fertilizer Delivery", quantity: "20 Bags (Urea)", icon: "seed", time: "16 minutes ago", status: "Pending" },
+  { id: "REQ-204", name: "Raj", village: "Sehore", service: "Crop Transport", quantity: "5 Tons (Wheat)", icon: "transport", time: "45 minutes ago", status: "Completed" },
+  { id: "REQ-205", name: "Suresh", village: "Sehore", service: "Tractor Repair", quantity: "Engine Maintenance", icon: "mechanic", time: "1 hour ago", status: "Pending" },
+  { id: "REQ-206", name: "Hari", village: "Mandla", service: "Crop Transport", quantity: "3 Tons (Soybean)", icon: "transport", time: "2 hours ago", status: "Grouped" }
 ];
 
 const INITIAL_BLOCKS = [
@@ -17,11 +17,18 @@ const INITIAL_BLOCKS = [
     icon: "tanker", 
     status: "live", 
     farmers: "12 Farmers", 
+    quantity: "60,000 L Total",
     saved: "₹9,400", 
     provider: "Rural Logistics Ltd", 
     villages: ["Sanchi", "Rahatgarh"], 
+    coords: [[23.41, 77.58], [23.32, 77.62]],
     costSplit: { total: 4800, split: 400 },
-    rules: ["Locality grouping within 5km radius", "Optimal tanker load balancing", "Shared mileage split discount"]
+    rules: ["Locality grouping within 5km radius", "Optimal tanker load balancing", "Shared mileage split discount"],
+    farmerRequests: [
+      { name: "Ganesh Patel", village: "Sanchi", quantity: "15,000 Liters" },
+      { name: "Ramesh Kumar", village: "Sanchi", quantity: "20,000 Liters" },
+      { name: "Suresh Singh", village: "Rahatgarh", quantity: "25,000 Liters" }
+    ]
   },
   { 
     id: "TB-0942", 
@@ -29,11 +36,19 @@ const INITIAL_BLOCKS = [
     icon: "seed", 
     status: "matching", 
     farmers: "8 Farmers", 
+    quantity: "160 Bags Total",
     saved: "₹3,200", 
     provider: "Unassigned", 
     villages: ["Bilaspur", "Sehore"], 
+    coords: [[23.18, 77.45], [23.20, 77.20]],
     costSplit: { total: 3200, split: 400 },
-    rules: ["Cooperative purchasing discounts", "Dropoff point clustering", "Co-loaded logistics reduction"]
+    rules: ["Cooperative purchasing discounts", "Dropoff point clustering", "Co-loaded logistics reduction"],
+    farmerRequests: [
+      { name: "Kavi Sharma", village: "Bilaspur", quantity: "40 Bags (Urea)" },
+      { name: "Hari Ram", village: "Sehore", quantity: "60 Bags (Urea)" },
+      { name: "Rajesh Yadav", village: "Bilaspur", quantity: "30 Bags (DAP)" },
+      { name: "Kamlesh Mandloi", village: "Sehore", quantity: "30 Bags (NPK)" }
+    ]
   },
   { 
     id: "TB-0943", 
@@ -41,11 +56,18 @@ const INITIAL_BLOCKS = [
     icon: "tractor", 
     status: "live", 
     farmers: "5 Farmers", 
+    quantity: "15 Acres Total",
     saved: "₹12,000", 
     provider: "Sardar Machinery", 
     villages: ["Mandla", "Sehore"], 
+    coords: [[23.08, 77.40], [23.20, 77.20]],
     costSplit: { total: 5000, split: 1000 },
-    rules: ["Multi-acre sequential field mapping", "Fuel conservation routing", "Shared operator dispatch"]
+    rules: ["Multi-acre sequential field mapping", "Fuel conservation routing", "Shared operator dispatch"],
+    farmerRequests: [
+      { name: "Amarapreet Singh", village: "Mandla", quantity: "5 Acres (Harvesting)" },
+      { name: "Preeti Thakur", village: "Sehore", quantity: "4 Acres (Ploughing)" },
+      { name: "Devendra Patel", village: "Mandla", quantity: "6 Acres (Sowing)" }
+    ]
   }
 ];
 
@@ -71,7 +93,6 @@ const INITIAL_LOGS = [
   { time: "11:10 AM", type: "group", text: "TB-0941 created — 12 farmers grouped", tag: "Sanchi" }
 ];
 
-// --- COUNT UP HELPER ---
 function CountUp({ target, prefix = "" }) {
   const [count, setCount] = useState(0);
   useEffect(() => {
@@ -97,11 +118,20 @@ export default function App() {
   const [requests, setRequests] = useState(INITIAL_REQUESTS);
   const [tripBlocks, setTripBlocks] = useState(INITIAL_BLOCKS);
   const [logs, setLogs] = useState(INITIAL_LOGS);
-  const [selectedBlock, setSelectedBlock] = useState(INITIAL_BLOCKS[1]); // TB-0942 default
+  const [selectedBlock, setSelectedBlock] = useState(INITIAL_BLOCKS[1]); // Default to matching block
   const [approvedProviders, setApprovedProviders] = useState({});
   const [currentTime, setCurrentTime] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [alertMsg, setAlertMsg] = useState(null);
+
+  // Derived current block state which stays up-to-date with provider allocations
+  const currentBlock = tripBlocks.find(b => b.id === selectedBlock.id) || selectedBlock;
+
+  // Leaflet Map Refs
+  const mapContainerRef = useRef(null);
+  const leafletMapInstance = useRef(null);
+  const mapMarkers = useRef([]);
+  const mapPolyline = useRef(null);
 
   // Simulation state variables
   const [pipelineStep, setPipelineStep] = useState(1);
@@ -137,11 +167,11 @@ export default function App() {
         const firstNames = ["Kamlesh", "Sunita", "Rajesh", "Narmada", "Ramesh", "Preeti"];
         const villages = ["Sanchi", "Mandla", "Bilaspur", "Sehore", "Rahatgarh"];
         const services = [
-          { label: "Water Tanker • 4000L", icon: "tanker" },
-          { label: "Tractor Rental • Sowing", icon: "tractor" },
-          { label: "Harvester Mechanic", icon: "mechanic" },
-          { label: "Crop Transport • 3 Tons", icon: "transport" },
-          { label: "Fertilizer • 15 Bags", icon: "seed" }
+          { label: "Water Tanker", quantity: "4,000 Liters", icon: "tanker" },
+          { label: "Tractor Rental", quantity: "2 Acres", icon: "tractor" },
+          { label: "Tractor Repair", quantity: "Engine Tuning", icon: "mechanic" },
+          { label: "Crop Transport", quantity: "3 Tons", icon: "transport" },
+          { label: "Fertilizer Delivery", quantity: "15 Bags", icon: "seed" }
         ];
 
         const randomName = firstNames[Math.floor(Math.random() * firstNames.length)];
@@ -153,6 +183,7 @@ export default function App() {
           name: randomName,
           village: randomVillage,
           service: randomService.label,
+          quantity: randomService.quantity,
           icon: randomService.icon,
           time: "Just now",
           status: "Pending"
@@ -164,7 +195,7 @@ export default function App() {
           {
             time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
             type: "ai",
-            text: `AI Processed request from ${randomName} (${randomVillage}) for ${randomService.label.split(' • ')[0]}`,
+            text: `AI Processed request from ${randomName} (${randomVillage}) for ${randomService.label} of ${randomService.quantity}`,
             tag: "AI"
           },
           ...prev.slice(0, 8)
@@ -174,6 +205,124 @@ export default function App() {
 
     return () => clearInterval(sim);
   }, [liveScroll]);
+
+  // Leaflet Map Initialization
+  useEffect(() => {
+    // Only run if active view is dashboard and L is globally available
+    if (activeView === "dashboard" && mapContainerRef.current && window.L && !leafletMapInstance.current) {
+      try {
+        // Bhopal hub center
+        leafletMapInstance.current = window.L.map(mapContainerRef.current, {
+          zoomControl: false
+        }).setView([23.25, 77.41], 10);
+
+        // OSM Tiles
+        window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          maxZoom: 18,
+          attribution: '© OpenStreetMap'
+        }).addTo(leafletMapInstance.current);
+
+        // Zoom controller in top right
+        window.L.control.zoom({ position: 'topright' }).addTo(leafletMapInstance.current);
+
+        // Force invalidateSize after rendering completes to prevent any tile rendering issues
+        setTimeout(() => {
+          if (leafletMapInstance.current) {
+            leafletMapInstance.current.invalidateSize();
+          }
+        }, 150);
+      } catch (err) {
+        console.error("Leaflet map initialization failed: ", err);
+      }
+    }
+
+    // Cleanup Leaflet Map when unmounted or view changes
+    return () => {
+      if (leafletMapInstance.current) {
+        leafletMapInstance.current.remove();
+        leafletMapInstance.current = null;
+        mapMarkers.current = [];
+        mapPolyline.current = null;
+      }
+    };
+  }, [activeView]);
+
+  // Update Leaflet Map markers/polyline based on selected block
+  useEffect(() => {
+    if (activeView === "dashboard" && leafletMapInstance.current && window.L) {
+      try {
+        // Clear previous markers
+        mapMarkers.current.forEach(m => leafletMapInstance.current.removeLayer(m));
+        mapMarkers.current = [];
+
+        // Clear previous polyline
+        if (mapPolyline.current) {
+          leafletMapInstance.current.removeLayer(mapPolyline.current);
+          mapPolyline.current = null;
+        }
+
+        // Draw Bhopal Center Hub
+        const hubIcon = window.L.divIcon({
+          className: 'custom-hub-icon',
+          html: `<div class="w-8 h-8 rounded-full bg-brand-green border-2 border-white flex items-center justify-center shadow-lg text-white text-xs">🏢</div>`,
+          iconSize: [32, 32],
+          iconAnchor: [16, 16]
+        });
+        const hubMarker = window.L.marker([23.25, 77.41], { icon: hubIcon })
+          .addTo(leafletMapInstance.current)
+          .bindPopup("<b>TripBlock Bhopal Hub</b><br/>Supplier/Provider Depot Center");
+        mapMarkers.current.push(hubMarker);
+
+        // Add villages for the selected block
+        const locations = {
+          "Sanchi": [23.41, 77.58],
+          "Rahatgarh": [23.32, 77.62],
+          "Bilaspur": [23.18, 77.45],
+          "Sehore": [23.20, 77.08],
+          "Mandla": [23.08, 77.40]
+        };
+
+        const routeCoords = [[23.25, 77.41]]; // Start path from Hub
+
+        currentBlock.villages.forEach(vName => {
+          const coord = locations[vName];
+          if (coord) {
+            routeCoords.push(coord);
+            
+            const pinIcon = window.L.divIcon({
+              className: 'custom-pin-icon',
+              html: `<div class="w-6 h-6 rounded-full bg-accent-green border-2 border-white flex items-center justify-center shadow-md text-white text-[10px] font-bold">📍</div>`,
+              iconSize: [24, 24],
+              iconAnchor: [12, 12]
+            });
+
+            const marker = window.L.marker(coord, { icon: pinIcon })
+              .addTo(leafletMapInstance.current)
+              .bindPopup(`<b>Village: ${vName}</b><br/>Service Requirement: ${currentBlock.service}<br/>Quantity Forwarding: ${currentBlock.quantity}`);
+            
+            mapMarkers.current.push(marker);
+          }
+        });
+
+        // Draw green route line
+        if (routeCoords.length > 1) {
+          mapPolyline.current = window.L.polyline(routeCoords, {
+            color: '#2E7D32',
+            weight: 4,
+            dashArray: '5, 8',
+            opacity: 0.85
+          }).addTo(leafletMapInstance.current);
+
+          // Fit map boundaries to coordinates
+          leafletMapInstance.current.fitBounds(window.L.latLngBounds(routeCoords), {
+            padding: [40, 40]
+          });
+        }
+      } catch (err) {
+        console.error("Leaflet drawing error: ", err);
+      }
+    }
+  }, [currentBlock, activeView]);
 
   // WhatsApp Simulation Trigger
   const triggerChat = () => {
@@ -186,7 +335,7 @@ export default function App() {
       { sender: "farmer", text: "हाँ भैया, राहतगढ़ से ही।" },
       { sender: "ai", text: "ठीक है! विवरण: ट्रैक्टर रेंटल, 3 एकड़ क्षेत्र, समय: सुबह 7:00 बजे, स्थान: राहतगढ़।" },
       { sender: "farmer", text: "हाँ, सब ठीक है।" },
-      { sender: "ai", text: "✅ बुकिंग सफल! आपकी रिक्वेस्ट को TB-0942 (Fertilizer & Tractor Block) के साथ ग्रुप कर दिया गया है जिससे आपकी ₹1,500 की बचत होगी।" }
+      { sender: "ai", text: "✅ बुकिंग सफल! आपकी 3 एकड़ की जुताई की रिक्वेस्ट को TB-0942 (Tractor Rental Block) के साथ जोड़ दिया गया है। कुल 15 एकड़ का समूह तैयार है, जिससे आपकी ₹1,500 की बचत होगी।" }
     ];
 
     let idx = 0;
@@ -213,7 +362,7 @@ export default function App() {
     let idx = 0;
     const targetJson = JSON.stringify({
       service: "tractor_rental",
-      land_area: "3 acres",
+      quantity: "3 Acres (Harvesting/Ploughing)",
       requested_time: "07:00 AM",
       location: "Village Rahatgarh",
       language: "Hindi (Voice)",
@@ -232,26 +381,23 @@ export default function App() {
     }, 15);
   };
 
-  useEffect(() => {
-    if (activeView === "processing") {
-      triggerChat();
-    }
-  }, [activeView]);
-
-  // Provider assignment handler
+  // Provider assignment & quantity forwarding handler
   const handleApprove = (blockId, providerName) => {
     setApprovedProviders(prev => ({ ...prev, [blockId]: providerName }));
     setTripBlocks(prev => prev.map(b => b.id === blockId ? { ...b, status: "live", provider: providerName } : b));
     
-    // Add custom feedback alert
-    setAlertMsg(`Provider "${providerName}" has been successfully assigned to Block ${blockId}!`);
-    setTimeout(() => setAlertMsg(null), 4000);
+    const block = tripBlocks.find(b => b.id === blockId);
+    const forwardedQty = block ? block.quantity : "all grouped requirements";
+
+    // Set custom alert showing quantity forwarding to provider
+    setAlertMsg(`Requirement of ${forwardedQty} successfully forwarded and dispatched to ${providerName}!`);
+    setTimeout(() => setAlertMsg(null), 5000);
 
     setLogs(prev => [
       {
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         type: "assign",
-        text: `Manual Dispatch: "${providerName}" assigned to active Block ${blockId}`,
+        text: `Forwarded quantity of ${forwardedQty} for block ${blockId} to "${providerName}"`,
         tag: blockId
       },
       ...prev
@@ -281,7 +427,6 @@ export default function App() {
     );
   };
 
-  // Filter requests based on query
   const filteredRequests = requests.filter(r => 
     r.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     r.village.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -369,10 +514,10 @@ export default function App() {
         </div>
       </aside>
 
-      {/* MAIN CONTENT WORKSPACE */}
+      {/* MAIN CONTAINER */}
       <main className="flex-1 flex flex-col overflow-hidden">
         
-        {/* TOP STATUS BAR & HEADER */}
+        {/* HEADER */}
         <header className="flex items-center justify-between px-6 py-4 border-b border-card-border bg-white h-[64px] flex-shrink-0">
           <div className="flex items-center gap-3">
             <span className="text-sm font-semibold text-text-secondary font-display">TripBlock Operations Hub</span>
@@ -395,7 +540,6 @@ export default function App() {
             />
           </div>
 
-          {/* Top Actions & Profile */}
           <div className="flex items-center gap-4">
             <button className="text-text-muted hover:text-text-primary relative p-2 rounded-lg hover:bg-light-bg transition-colors">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -403,14 +547,12 @@ export default function App() {
               </svg>
               <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-danger-red"></span>
             </button>
-            
             <div className="flex items-center gap-2.5 bg-brand-green-light px-3 py-1.5 rounded-full border border-brand-green/10">
               <span className="w-2 h-2 rounded-full bg-brand-green"></span>
               <span className="text-xs font-semibold text-brand-green font-mono">Bhopal Hub</span>
             </div>
-            
             <div className="text-sm font-mono font-bold text-text-muted tracking-wide hidden lg:block">
-              {currentTime || "13:30 PM"}
+              {currentTime}
             </div>
           </div>
         </header>
@@ -418,46 +560,35 @@ export default function App() {
         {/* WORKSPACE PANELS CONTAINER */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           
-          {/* Feedback Alert Message */}
+          {/* Dispatch Toast Alert */}
           {alertMsg && (
             <div className="bg-success-green-light border border-success-green text-brand-green px-4 py-3.5 rounded-xl text-xs font-bold shadow-xs flex items-center justify-between animate-slideIn">
               <div className="flex items-center gap-2.5">
-                <span>🔔</span>
+                <span>📦</span>
                 <span>{alertMsg}</span>
               </div>
               <button onClick={() => setAlertMsg(null)} className="hover:opacity-70 text-brand-green">✕</button>
             </div>
           )}
 
-          {/* ========================================================================= */}
-          {/* VIEW 1: MAIN OPERATIONAL DASHBOARD */}
+          {/* VIEW 1: DUST-FREE, CLEAN OPERATIONAL DASHBOARD */}
           {activeView === "dashboard" && (
             <div className="space-y-6 animate-fadeIn">
               
-              {/* 1. TOP ANALYTICS KPI CARDS */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+              {/* TOP STRIP: CLEAN ANALYTICS */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {[
-                  { label: "Total Requests Today", value: 142, sub: "+12% vs yesterday", isGreen: true, icon: "livefeed" },
-                  { label: "AI Processed Requests", value: 138, sub: "97% Accuracy", isGreen: true, icon: "processing" },
-                  { label: "Active Trip Blocks", value: 24, sub: "6 Pending Match", isGreen: false, icon: "tripblocks" },
-                  { label: "Farmers Served", value: 842, sub: "+18 served today", isGreen: true, icon: "insights" },
-                  { label: "Total Savings", value: 42500, sub: "Efficiency up 18%", isGreen: true, prefix: "₹", icon: "seed" }
+                  { label: "Farmers Served Today", value: 842, sub: "+18 vs yesterday", isGreen: true },
+                  { label: "Active Trip Blocks", value: 24, sub: "6 pending matching", isGreen: false },
+                  { label: "Aggregate Savings", value: 42500, sub: "18% average reduction", prefix: "₹", isGreen: true }
                 ].map((kpi, idx) => (
-                  <div key={idx} className="bg-white border border-card-border rounded-xl p-4.5 shadow-xs hover:border-brand-green/30 hover:shadow-sm transition-all flex flex-col justify-between relative overflow-hidden group">
-                    {/* Small soft green accent strip */}
-                    <div className="absolute top-0 left-0 right-0 h-1 bg-brand-green-light group-hover:bg-brand-green transition-colors"></div>
-                    <div className="flex justify-between items-start mt-1">
-                      <div className="text-[10px] font-bold text-text-muted uppercase tracking-wider leading-none">
-                        {kpi.label}
-                      </div>
-                      <div className="text-brand-green bg-brand-green-light/60 p-1.5 rounded-lg">
-                        {drawIcon(kpi.icon, "w-4 h-4")}
-                      </div>
-                    </div>
-                    <div className="text-2xl font-bold text-text-primary font-display mt-3.5 leading-none">
+                  <div key={idx} className="bg-white border border-card-border rounded-xl p-4.5 shadow-sm flex flex-col justify-between relative overflow-hidden">
+                    <div className="absolute top-0 left-0 right-0 h-1 bg-brand-green"></div>
+                    <span className="text-[10px] font-bold text-text-muted uppercase tracking-wider">{kpi.label}</span>
+                    <div className="text-2xl font-bold text-text-primary font-display mt-2">
                       <CountUp target={kpi.value} prefix={kpi.prefix} />
                     </div>
-                    <div className={`text-2xs font-semibold mt-2.5 flex items-center gap-1 ${kpi.isGreen ? 'text-success-green' : 'text-warning-orange'}`}>
+                    <div className={`text-[9px] font-semibold mt-1.5 flex items-center gap-1.5 ${kpi.isGreen ? 'text-success-green' : 'text-warning-orange'}`}>
                       <span className="w-1.5 h-1.5 rounded-full bg-current"></span>
                       {kpi.sub}
                     </div>
@@ -465,492 +596,208 @@ export default function App() {
                 ))}
               </div>
 
-              {/* 2. LATEST REQUEST JOURNEY FLOW DIAGRAM */}
-              <div className="bg-white border border-card-border rounded-xl p-5 shadow-xs relative overflow-hidden">
-                {groupingPulse && (
-                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <div className="w-[120px] h-[120px] border-4 border-brand-green/20 rounded-full animate-sonar"></div>
-                  </div>
-                )}
+              {/* 2-COLUMN LAYOUT: LEAFLET MAP & OPERATIONS CONTROL PANEL */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
                 
-                <div className="flex justify-between items-center mb-4.5">
-                  <div>
-                    <h3 className="font-display font-bold text-sm text-text-primary">Latest Request Optimization Journey</h3>
-                    <p className="text-2xs text-text-muted font-semibold mt-0.5">Real-time status tracking of aggregator pipelines</p>
-                  </div>
-                  <span className="px-2.5 py-1 text-2xs font-bold rounded-lg bg-brand-green-light text-brand-green border border-brand-green/10">
-                    Step {pipelineStep + 1} of 5 Active
-                  </span>
-                </div>
-                
-                <div className="flex flex-col lg:flex-row items-stretch justify-between gap-3 relative z-10">
-                  {[
-                    { title: "Voice Request", desc: "Sarvam Voice STT Input", icon: "🎙️", detail: "Hindi audio input capture" },
-                    { title: "AI NLU Extraction", desc: "Entity Parsing Engine", icon: "⚙️", detail: "Extracting service & area" },
-                    { title: "Smart Grouping", desc: "Locality Density Cluster", icon: "👥", detail: "Grouping adjacent demand" },
-                    { title: "Provider Assigned", desc: "Optimal Cost Bid-Match", icon: "📋", detail: "Matching lowest supplier bid" },
-                    { title: "Shared Trip", desc: "Cooperative Dispatch Live", icon: "🚛", detail: "Joint transport rollout" }
-                  ].map((step, idx) => {
-                    const isActive = pipelineStep === idx;
-                    const isCompleted = idx < pipelineStep;
-                    return (
-                      <React.Fragment key={idx}>
-                        <div 
-                          className={`flex-1 p-4 rounded-xl border transition-all duration-300 flex flex-col justify-between ${
-                            isActive 
-                              ? 'bg-brand-green-light border-brand-green shadow-xs' 
-                              : isCompleted 
-                              ? 'bg-success-green-light/40 border-success-green/30' 
-                              : 'bg-white border-card-border'
-                          }`}
-                        >
-                          <div className="flex items-center justify-between">
-                            <span className="text-xl leading-none">{step.icon}</span>
-                            {isCompleted ? (
-                              <span className="text-success-green text-xs font-bold">✓ Done</span>
-                            ) : isActive ? (
-                              <span className="flex h-2 w-2 relative">
-                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-green opacity-75"></span>
-                                <span className="relative inline-flex rounded-full h-2 w-2 bg-brand-green"></span>
-                              </span>
-                            ) : (
-                              <span className="text-text-muted text-2xs font-semibold">Wait</span>
-                            )}
-                          </div>
-                          <div className="mt-4">
-                            <div className="text-xs font-bold text-text-primary">{step.title}</div>
-                            <div className="text-[10px] text-text-muted mt-1 leading-normal font-medium">{step.desc}</div>
-                            <div className="text-[9px] text-brand-green/80 font-mono mt-1.5 font-bold tracking-tight">{step.detail}</div>
-                          </div>
-                        </div>
-                        
-                        {/* Horizontal Chevron Arrow on Large Screens, hidden on mobile */}
-                        {idx < 4 && (
-                          <div className="hidden lg:flex items-center text-text-muted self-center px-0.5">
-                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                            </svg>
-                          </div>
-                        )}
-                      </React.Fragment>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* 3. TWO COLUMN LAYOUT: LIVE FEED & MAP VIEW */}
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                
-                {/* A. Live Requests Feed Card */}
-                <div className="lg:col-span-5 bg-white border border-card-border rounded-xl p-5 shadow-xs flex flex-col h-[460px]">
-                  <div className="flex justify-between items-center mb-4 flex-shrink-0">
+                {/* Left Column: Interactive Leaflet Map */}
+                <div className="lg:col-span-7 bg-white border border-card-border rounded-xl p-4.5 shadow-sm flex flex-col">
+                  <div className="flex justify-between items-center mb-3">
                     <div>
-                      <h3 className="font-display font-bold text-sm text-text-primary">Live Requests Feed</h3>
-                      <p className="text-2xs text-text-muted font-semibold mt-0.5">Real-time incoming farmer logistics needs</p>
+                      <h3 className="font-display font-bold text-sm text-text-primary">Cooperative Operations Map</h3>
+                      <p className="text-2xs text-text-muted font-semibold mt-0.5">Real-time Leaflet tracking of Bhopal depot hub, village nodes, and active routes</p>
                     </div>
-                    <div className="flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-success-green animate-ping"></span>
-                      <span className="text-[10px] text-brand-green font-bold uppercase tracking-wider font-mono">Stream Active</span>
+                    <div className="flex items-center gap-1.5 bg-brand-green-light px-2.5 py-1 rounded text-2xs text-brand-green font-semibold border border-brand-green/10">
+                      <span className="w-1.5 h-1.5 bg-brand-green rounded-full animate-pulse"></span>
+                      GPS Live Active
+                    </div>
+                  </div>
+                  
+                  {/* Map div container */}
+                  <div 
+                    ref={mapContainerRef} 
+                    id="leaflet-map-canvas"
+                    className="w-full flex-1 min-h-[460px] rounded-xl border border-slate-200 shadow-inner bg-slate-50 z-10"
+                  >
+                    {/* Leaflet injects canvas here */}
+                  </div>
+                </div>
+
+                {/* Right Column: Unified Operations & Matching Controls */}
+                <div className="lg:col-span-5 flex flex-col gap-6 justify-between">
+                  
+                  {/* A. Cooperative Trip Blocks Selection */}
+                  <div className="bg-white border border-card-border rounded-xl p-4.5 shadow-sm flex flex-col">
+                    <div className="flex justify-between items-center mb-3">
+                      <div>
+                        <h3 className="font-display font-bold text-sm text-text-primary">Grouped Trip Blocks</h3>
+                        <p className="text-2xs text-text-muted font-semibold mt-0.5">Select a block to review demands and assign providers</p>
+                      </div>
+                      <span className="text-[10px] font-bold font-mono text-brand-green bg-brand-green-light px-2 py-0.5 rounded">
+                        {tripBlocks.length} Blocks
+                      </span>
+                    </div>
+
+                    <div className="space-y-2 max-h-[170px] overflow-y-auto pr-1">
+                      {tripBlocks.map(block => {
+                        const isSelected = selectedBlock.id === block.id;
+                        const isLive = block.status === 'live';
+                        return (
+                          <div 
+                            key={block.id}
+                            onClick={() => setSelectedBlock(block)}
+                            className={`p-3 rounded-xl border text-xs cursor-pointer transition-all flex items-center justify-between ${
+                              isSelected 
+                                ? 'bg-brand-green-light/50 border-brand-green shadow-2xs font-semibold' 
+                                : 'bg-white border-card-border hover:border-brand-green/20'
+                            }`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                                isSelected ? 'bg-brand-green text-white' : 'bg-brand-green-light text-brand-green'
+                              }`}>
+                                {drawIcon(block.icon, "w-4.5 h-4.5")}
+                              </div>
+                              <div>
+                                <div className="flex items-center gap-1.5">
+                                  <span className="font-mono font-bold text-brand-green">{block.id}</span>
+                                  <span className="text-[10px] font-semibold text-text-secondary">• {block.service}</span>
+                                </div>
+                                <span className="text-[10px] text-text-muted font-semibold mt-0.5 block">{block.farmers} • {block.villages.join(" ↔ ")}</span>
+                              </div>
+                            </div>
+                            <div className="text-right flex flex-col items-end gap-1">
+                              <span className="font-bold text-success-green">Saved {block.saved}</span>
+                              <span className={`px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider ${
+                                isLive ? 'bg-success-green-light text-success-green' : 'bg-warning-orange-light text-warning-orange'
+                              }`}>{block.status}</span>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
 
-                  {/* Filterable Feed */}
-                  <div className="flex-1 overflow-y-auto space-y-3.5 pr-1">
-                    {filteredRequests.length > 0 ? (
-                      filteredRequests.map(req => (
-                        <div 
-                          key={req.id} 
-                          className="p-3.5 bg-white border border-card-border rounded-xl flex items-center justify-between hover:border-brand-green/50 hover:shadow-2xs transition-all cursor-pointer"
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-brand-green-light text-brand-green flex items-center justify-center flex-shrink-0">
-                              {drawIcon(req.icon, "w-5 h-5")}
-                            </div>
-                            <div>
-                              <div className="text-xs font-bold text-text-primary flex items-center gap-1.5">
-                                <span>{req.name}</span>
-                                <span className="text-text-muted font-normal">•</span>
-                                <span className="text-[10px] text-brand-green font-bold font-mono bg-brand-green-light px-1.5 py-0.5 rounded">
-                                  {req.village}
+                  {/* B. Dynamic Forwarding & Provider Matching Panel */}
+                  <div className="bg-white border border-card-border rounded-xl p-4.5 shadow-sm flex-1 flex flex-col justify-between">
+                    <div>
+                      <div className="flex justify-between items-start border-b border-card-border pb-3 mb-3">
+                        <div>
+                          <h3 className="font-display font-bold text-sm text-text-primary">Forwarding & Match Control</h3>
+                          <p className="text-2xs text-text-muted font-semibold mt-0.5">
+                            Details for Block <span className="font-bold text-brand-green">{currentBlock.id}</span>
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-[10px] text-text-muted font-bold block">TOTAL QUANTITY</span>
+                          <span className="font-mono text-sm font-bold text-brand-green">{currentBlock.quantity}</span>
+                        </div>
+                      </div>
+
+                      {/* Display Individual Farmer Requirements (User Quantities) */}
+                      <div className="mb-4">
+                        <div className="text-[10px] font-bold text-text-muted uppercase tracking-wider mb-2 flex justify-between items-center">
+                          <span>Farmer Requests Breakdown</span>
+                          <span className="text-brand-green text-[9px] font-bold">Qty to Forward</span>
+                        </div>
+                        <div className="bg-light-bg rounded-xl border border-card-border p-3 space-y-2.5 max-h-[120px] overflow-y-auto">
+                          {currentBlock.farmerRequests?.map((req, rIdx) => (
+                            <div key={rIdx} className="flex justify-between items-center text-xs">
+                              <div className="flex items-center gap-2">
+                                <span className="text-2xs font-extrabold w-4 h-4 rounded-full bg-brand-green-light text-brand-green flex items-center justify-center font-mono">
+                                  {rIdx + 1}
                                 </span>
+                                <div>
+                                  <span className="font-bold text-text-primary">{req.name}</span>
+                                  <span className="text-text-muted font-semibold pl-1">({req.village})</span>
+                                </div>
                               </div>
-                              <div className="text-[10px] text-text-secondary mt-1 font-semibold flex items-center gap-1.5">
-                                <span>{req.service}</span>
-                              </div>
+                              <span className="font-mono font-bold text-brand-green">{req.quantity}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Providers recommendation / Forward action */}
+                    <div>
+                      {currentBlock.provider && currentBlock.provider !== "Unassigned" ? (
+                        /* Forwarded / Dispatched Receipt View */
+                        <div className="bg-success-green-light/45 border border-success-green/35 rounded-xl p-3.5 space-y-3">
+                          <div className="flex justify-between items-center">
+                            <span className="text-xs font-bold text-brand-green flex items-center gap-1.5">
+                              <span>✓</span> Dispatch Forwarded Successfully
+                            </span>
+                            <span className="px-2 py-0.5 rounded text-[8px] font-bold bg-success-green text-white uppercase font-mono">Dispatched</span>
+                          </div>
+                          
+                          <div className="text-2xs text-text-secondary border-t border-b border-success-green/20 py-2 space-y-1 font-mono font-semibold">
+                            <div className="flex justify-between">
+                              <span>Matched Provider:</span>
+                              <span className="font-bold text-text-primary">{currentBlock.provider}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span>Aggregated Quantity:</span>
+                              <span className="font-bold text-brand-green">{currentBlock.quantity}</span>
+                            </div>
+                            <div className="flex justify-between pt-1 border-t border-dashed border-success-green/20 text-[10px]">
+                              <span>Farmer Dispatches:</span>
+                              <span className="text-success-green font-bold">ALL ACTIVE ({currentBlock.farmerRequests?.length} Farmers)</span>
                             </div>
                           </div>
                           
-                          <div className="flex flex-col items-end gap-1.5">
-                            <span className="text-[9px] text-text-muted font-bold font-mono">{req.time}</span>
-                            <span className={`px-2 py-0.5 text-[9px] font-bold rounded-lg border uppercase tracking-wider ${
-                              req.status === 'Completed' 
-                                ? 'bg-success-green-light border-success-green/20 text-success-green' 
-                                : req.status === 'Grouped'
-                                ? 'bg-blue-50 border-blue-200 text-blue-700'
-                                : 'bg-warning-orange-light border-warning-orange/20 text-warning-orange'
-                            }`}>{req.status}</span>
+                          <p className="text-[10px] text-text-muted leading-tight font-semibold italic text-center">
+                            Provider has confirmed and scheduled route dispatch to village nodes.
+                          </p>
+                        </div>
+                      ) : (
+                        /* Active Matching & Forwarding Options */
+                        <div className="space-y-3">
+                          <div className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Recommended Logistics Providers</div>
+                          <div className="space-y-2 max-h-[160px] overflow-y-auto pr-1">
+                            {PROVIDERS[currentBlock.id]?.map((prov, i) => {
+                              const isRecommended = i === 0;
+                              return (
+                                <div 
+                                  key={prov.name} 
+                                  className={`p-3 rounded-xl border flex items-center justify-between transition-all ${
+                                    isRecommended 
+                                      ? 'bg-brand-green-light/25 border-brand-green/50 font-semibold shadow-2xs' 
+                                      : 'bg-white border-card-border hover:border-brand-green/20'
+                                  }`}
+                                >
+                                  <div>
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="text-xs font-bold text-text-primary">{prov.name}</span>
+                                      {isRecommended && (
+                                        <span className="text-[7px] font-extrabold px-1 rounded bg-brand-green text-white uppercase">Rec</span>
+                                      )}
+                                    </div>
+                                    <div className="text-[10px] text-text-muted font-semibold mt-1 flex items-center gap-1.5">
+                                      <span className="text-warning-orange font-bold">★ {prov.rating}</span>
+                                      <span>•</span>
+                                      <span>{prov.dist}</span>
+                                      <span>•</span>
+                                      <span className="text-brand-green font-semibold">{prov.availability}</span>
+                                    </div>
+                                  </div>
+                                  <div className="flex flex-col items-end gap-1.5">
+                                    <span className="text-2xs font-mono font-bold text-brand-green">{prov.score}% Match</span>
+                                    <button 
+                                      onClick={() => handleApprove(currentBlock.id, prov.name)}
+                                      className="px-3 py-1.5 bg-brand-green hover:bg-brand-green-hover text-white rounded-lg text-2xs font-bold transition-all shadow-2xs uppercase tracking-wider"
+                                    >
+                                      Forward Qty
+                                    </button>
+                                  </div>
+                                </div>
+                              );
+                            })}
                           </div>
                         </div>
-                      ))
-                    ) : (
-                      <div className="h-full flex items-center justify-center text-xs text-text-muted font-bold">
-                        No requests matching query.
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* B. Proper Map Section (Very Important) */}
-                <div className="lg:col-span-7 bg-white border border-card-border rounded-xl p-5 shadow-xs flex flex-col h-[460px]">
-                  <div className="flex justify-between items-center mb-4 flex-shrink-0">
-                    <div>
-                      <h3 className="font-display font-bold text-sm text-text-primary">Regional Operations Map</h3>
-                      <p className="text-2xs text-text-muted font-semibold mt-0.5">Farmer demands, village hubs & provider transit routes</p>
-                    </div>
-                    
-                    <div className="flex items-center gap-1 bg-light-bg px-2.5 py-1 rounded-lg border border-card-border text-[10px] font-mono text-text-muted font-bold">
-                      Focus Block: <span className="text-brand-green font-bold">{selectedBlock.id}</span>
-                    </div>
-                  </div>
-
-                  {/* Clean SVG Vector Map */}
-                  <div className="flex-1 bg-slate-50 border border-slate-200 rounded-xl relative overflow-hidden flex items-center justify-center">
-                    
-                    {/* Background Grid Pattern for Map */}
-                    <div className="absolute inset-0 opacity-[0.05] pointer-events-none" style={{
-                      backgroundImage: 'radial-gradient(circle, #2E7D32 1px, transparent 1px)',
-                      backgroundSize: '16px 16px'
-                    }}></div>
-
-                    <svg className="w-full h-full" viewBox="0 0 420 260">
-                      {/* Roads / Logistics Routes between villages */}
-                      <g stroke="#CBD5E1" strokeWidth="2.5" strokeLinecap="round" fill="none">
-                        <line x1="70" y1="70" x2="180" y2="100" /> {/* Sanchi - Rahatgarh */}
-                        <line x1="180" y1="100" x2="330" y2="70" /> {/* Rahatgarh - Bilaspur */}
-                        <line x1="180" y1="100" x2="250" y2="190" /> {/* Rahatgarh - Sehore */}
-                        <line x1="250" y1="190" x2="110" y2="200" /> {/* Sehore - Mandla */}
-                        <line x1="110" y1="200" x2="70" y2="70" />  {/* Mandla - Sanchi */}
-                      </g>
-
-                      {/* Active Shared Route Highlighted based on selectedBlock */}
-                      {selectedBlock.id === "TB-0941" && (
-                        <path d="M70,70 L180,100" fill="none" stroke="#2E7D32" strokeWidth="4.5" strokeDasharray="6,4" className="animate-pulse" />
                       )}
-                      {selectedBlock.id === "TB-0942" && (
-                        <path d="M330,70 L180,100 L250,190" fill="none" stroke="#2E7D32" strokeWidth="4.5" strokeDasharray="6,4" className="animate-pulse" />
-                      )}
-                      {selectedBlock.id === "TB-0943" && (
-                        <path d="M110,200 L250,190" fill="none" stroke="#2E7D32" strokeWidth="4.5" strokeDasharray="6,4" className="animate-pulse" />
-                      )}
-
-                      {/* Moving Vehicle Indicator along Highlighted Route */}
-                      {selectedBlock.status === "live" && (
-                        <g>
-                          {selectedBlock.id === "TB-0941" && (
-                            <circle cx="125" cy="85" r="7" fill="#1B5E20" className="animate-bounce">
-                              <title>Tanker in Transit</title>
-                            </circle>
-                          )}
-                          {selectedBlock.id === "TB-0943" && (
-                            <circle cx="180" cy="195" r="7" fill="#1B5E20" className="animate-bounce">
-                              <title>Tractor in Transit</title>
-                            </circle>
-                          )}
-                        </g>
-                      )}
-
-                      {/* Villages Nodes & Labels */}
-                      {[
-                        { name: "Sanchi", x: 70, y: 70, farmer: "Ganesh (Water Tanker)", count: 12 },
-                        { name: "Rahatgarh", x: 180, y: 100, farmer: "Coop Depot Hub", count: 0 },
-                        { name: "Bilaspur", x: 330, y: 70, farmer: "Kavi (Fertilizer)", count: 8 },
-                        { name: "Sehore", x: 250, y: 190, farmer: "Raj (Cold Storage)", count: 5 },
-                        { name: "Mandla", x: 110, y: 200, farmer: "Amara (Tractor)", count: 6 }
-                      ].map((vil) => {
-                        const isAssociated = selectedBlock.villages.includes(vil.name);
-                        return (
-                          <g key={vil.name} className="cursor-pointer group">
-                            {/* Outer Glow Ring if associated with active block */}
-                            {isAssociated && (
-                              <circle cx={vil.x} cy={vil.y} r="18" fill="rgba(46,125,50,0.15)" stroke="rgba(46,125,50,0.4)" strokeWidth="1.5" />
-                            )}
-                            
-                            {/* Base Node Pin */}
-                            <circle cx={vil.x} cy={vil.y} r="8" fill={isAssociated ? "#2E7D32" : "#94A3B8"} stroke="#FFFFFF" strokeWidth="2" />
-                            
-                            {/* Village Label Banner */}
-                            <rect x={vil.x - 36} y={vil.y - 28} width="72" height="15" rx="4" fill="#FFFFFF" stroke="#E2E8F0" strokeWidth="1" />
-                            <text x={vil.x} y={vil.y - 18} textAnchor="middle" className="text-[8px] font-bold fill-slate-700 font-sans">
-                              {vil.name}
-                            </text>
-                            
-                            {/* Farmer label indicator when active */}
-                            {vil.count > 0 && (
-                              <g>
-                                <circle cx={vil.x + 8} cy={vil.y - 8} r="5" fill="#DC2626" />
-                                <text x={vil.x + 8} y={vil.y - 6} textAnchor="middle" className="text-[6px] font-bold fill-white">
-                                  {vil.count}
-                                </text>
-                              </g>
-                            )}
-                          </g>
-                        );
-                      })}
-
-                      {/* Compass / Legend Info in Corner */}
-                      <g transform="translate(320, 180)">
-                        <rect width="85" height="65" rx="6" fill="#FFFFFF" stroke="#E2E8F0" strokeWidth="1" />
-                        <text x="42.5" y="14" textAnchor="middle" className="text-[8px] font-bold fill-slate-800 font-sans">MAP LEGEND</text>
-                        
-                        <circle cx="15" cy="27" r="4.5" fill="#2E7D32" />
-                        <text x="26" y="30" className="text-[7px] font-semibold fill-slate-600 font-sans">Selected Block</text>
-
-                        <circle cx="15" cy="40" r="4.5" fill="#94A3B8" />
-                        <text x="26" y="43" className="text-[7px] font-semibold fill-slate-600 font-sans">Other Villages</text>
-
-                        <line x1="10" y1="53" x2="20" y2="53" stroke="#2E7D32" strokeWidth="3" strokeDasharray="3,2" />
-                        <text x="26" y="56" className="text-[7px] font-semibold fill-slate-600 font-sans">Transit Route</text>
-                      </g>
-                    </svg>
-
-                    {/* Pop-up Info Overlay */}
-                    <div className="absolute bottom-3 left-3 bg-white/95 border border-card-border p-3 rounded-lg text-[10px] space-y-1 shadow-md font-semibold max-w-[190px]">
-                      <div className="text-brand-green font-bold border-b border-card-border pb-1">
-                        Active Route Focus
-                      </div>
-                      <div className="text-text-primary leading-tight pt-1">
-                        Block: <span className="font-bold">{selectedBlock.id}</span> ({selectedBlock.service})
-                      </div>
-                      <div className="text-text-secondary leading-snug">
-                        Covers: {selectedBlock.villages.join(" ↔ ")}
-                      </div>
-                      <div className="text-success-green font-bold flex items-center gap-1.5 mt-0.5">
-                        <span>💰 Saving: {selectedBlock.saved}</span>
-                      </div>
-                    </div>
-
-                  </div>
-                </div>
-
-              </div>
-
-              {/* 4. LOWER GRID: ACTIVE TRIP BLOCKS & PROVIDER MATCHING PANEL */}
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                
-                {/* A. Active Trip Blocks List Card */}
-                <div className="lg:col-span-7 bg-white border border-card-border rounded-xl p-5 shadow-xs flex flex-col h-[380px]">
-                  <div className="flex justify-between items-center mb-4 flex-shrink-0">
-                    <div>
-                      <h3 className="font-display font-bold text-sm text-text-primary">Active Trip Blocks</h3>
-                      <p className="text-2xs text-text-muted font-semibold mt-0.5">Select a block to view custom provider matches</p>
-                    </div>
-                    <button 
-                      onClick={() => setActiveView("tripblocks")} 
-                      className="text-xs font-bold text-brand-green hover:text-brand-green-hover hover:underline"
-                    >
-                      Manage Blocks
-                    </button>
-                  </div>
-
-                  <div className="flex-1 overflow-x-auto">
-                    <table className="w-full text-left text-xs border-collapse">
-                      <thead>
-                        <tr className="text-text-muted border-b border-card-border pb-2 uppercase tracking-wider font-bold text-[10px] bg-light-bg/80">
-                          <th className="py-2.5 px-3">Block ID</th>
-                          <th className="py-2.5 px-2">Service Type</th>
-                          <th className="py-2.5 px-2 text-center">Group Size</th>
-                          <th className="py-2.5 px-2 text-right">Est Savings</th>
-                          <th className="py-2.5 px-3">Assigned Provider</th>
-                          <th className="py-2.5 px-2 text-center">Status</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-card-border">
-                        {tripBlocks.map(block => {
-                          const isSelected = selectedBlock.id === block.id;
-                          return (
-                            <tr 
-                              key={block.id} 
-                              onClick={() => setSelectedBlock(block)}
-                              className={`hover:bg-light-bg/50 cursor-pointer transition-colors ${
-                                isSelected ? 'bg-brand-green-light/45 border-l-4 border-l-brand-green' : ''
-                              }`}
-                            >
-                              <td className="py-3.5 px-3 font-mono font-bold text-brand-green">{block.id}</td>
-                              <td className="py-3.5 px-2 font-bold text-text-primary">
-                                <span className="flex items-center gap-2">
-                                  {drawIcon(block.icon, "w-4.5 h-4.5 text-brand-green")}
-                                  {block.service}
-                                </span>
-                              </td>
-                              <td className="py-3.5 px-2 text-center text-text-secondary font-semibold">{block.farmers}</td>
-                              <td className="py-3.5 px-2 text-right font-extrabold text-success-green">{block.saved}</td>
-                              <td className="py-3.5 px-3 text-text-secondary font-medium">{block.provider}</td>
-                              <td className="py-3.5 px-2 text-center">
-                                <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${
-                                  block.status === 'live' 
-                                    ? 'bg-success-green-light border border-success-green/20 text-success-green' 
-                                    : 'bg-warning-orange-light border border-warning-orange/20 text-warning-orange'
-                                }`}>
-                                  {block.status}
-                                </span>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-
-                {/* B. Provider Matching Panel */}
-                <div className="lg:col-span-5 bg-white border border-card-border rounded-xl p-5 shadow-xs flex flex-col h-[380px]">
-                  <div className="flex justify-between items-center mb-4.5 flex-shrink-0">
-                    <div>
-                      <h3 className="font-display font-bold text-sm text-text-primary">Provider Matching Control</h3>
-                      <p className="text-2xs text-text-muted font-semibold mt-0.5">
-                        Selected Block: <span className="text-brand-green font-bold">{selectedBlock.id}</span>
-                      </p>
                     </div>
                   </div>
 
-                  {/* Provider List */}
-                  <div className="flex-1 overflow-y-auto space-y-3 pr-1">
-                    {PROVIDERS[selectedBlock.id]?.map((prov, i) => {
-                      const isAssigned = approvedProviders[selectedBlock.id] === prov.name || selectedBlock.provider === prov.name;
-                      const isRecommended = i === 0; // First index represents high recommendation
-                      return (
-                        <div 
-                          key={prov.name} 
-                          className={`p-3.5 rounded-xl border transition-all ${
-                            isAssigned 
-                              ? 'bg-success-green-light/25 border-success-green' 
-                              : isRecommended 
-                              ? 'bg-brand-green-light/25 border-brand-green/60 shadow-2xs' 
-                              : 'bg-white border-card-border hover:border-brand-green/30'
-                          }`}
-                        >
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <span className="text-xs font-bold text-text-primary">{prov.name}</span>
-                                {isRecommended && (
-                                  <span className="text-[8px] font-extrabold px-1.5 py-0.5 rounded bg-brand-green text-white uppercase tracking-wider">
-                                    Recommended
-                                  </span>
-                                )}
-                              </div>
-                              
-                              <div className="text-[10px] text-text-muted font-bold mt-1.5 flex items-center gap-2">
-                                <span className="text-warning-orange">★ {prov.rating}</span>
-                                <span className="text-slate-300">|</span>
-                                <span>{prov.reviews} Reviews</span>
-                                <span className="text-slate-300">|</span>
-                                <span className="text-brand-green font-semibold">{prov.dist}</span>
-                              </div>
-                              
-                              <div className="text-[10px] text-text-secondary mt-1 font-semibold flex items-center gap-1">
-                                <span className="w-1.5 h-1.5 rounded-full bg-success-green animate-pulse"></span>
-                                <span>{prov.availability}</span>
-                              </div>
-                            </div>
-
-                            <div className="flex flex-col items-end gap-2.5">
-                              <span className="text-xs font-bold text-brand-green font-mono">{prov.score}% Match</span>
-                              <button 
-                                onClick={() => handleApprove(selectedBlock.id, prov.name)}
-                                disabled={isAssigned}
-                                className={`px-3.5 py-1.5 rounded-lg text-xs font-bold shadow-2xs transition-all ${
-                                  isAssigned 
-                                    ? 'bg-success-green text-white cursor-default' 
-                                    : 'bg-brand-green text-white hover:bg-brand-green-hover'
-                                }`}
-                              >
-                                {isAssigned ? "Assigned" : "Assign"}
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-              </div>
-
-              {/* 5. IMPACT & INSIGHTS SMALL CHARTS WIDGETS */}
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                
-                {/* A. Cumulative Savings Vertical Bar Chart */}
-                <div className="lg:col-span-7 bg-white border border-card-border rounded-xl p-5 shadow-xs flex flex-col h-[280px]">
-                  <div className="flex justify-between items-center mb-4">
-                    <div>
-                      <h3 className="font-display font-bold text-sm text-text-primary">Cumulative Savings (₹)</h3>
-                      <p className="text-2xs text-text-muted font-semibold mt-0.5">Aggregate money saved via shared cooperative transit</p>
-                    </div>
-                    <span className="text-[10px] font-bold text-brand-green bg-brand-green-light px-2 py-0.5 rounded-md">Last 7 Days</span>
-                  </div>
-
-                  {/* Clean SVG/HTML Bar Diagram */}
-                  <div className="flex-1 flex justify-between items-end gap-3 px-4 pt-4">
-                    {[
-                      { day: "MON", value: 4200 },
-                      { day: "TUE", value: 6800 },
-                      { day: "WED", value: 8500 },
-                      { day: "THU", value: 7100 },
-                      { day: "FRI", value: 9200 },
-                      { day: "SAT", value: 11800 },
-                      { day: "SUN", value: 10500, isToday: true }
-                    ].map((item, idx) => (
-                      <div key={idx} className="flex-1 flex flex-col items-center gap-2 h-full justify-end relative group">
-                        <div className="opacity-0 group-hover:opacity-100 absolute bottom-[108%] bg-slate-800 text-white text-[9px] font-bold py-1 px-1.5 rounded shadow-sm transition-opacity pointer-events-none">
-                          ₹{item.value.toLocaleString()}
-                        </div>
-                        {item.isToday && (
-                          <span className="absolute bottom-[104%] text-[9px] font-extrabold text-brand-green bg-brand-green-light px-1.5 py-0.5 rounded animate-bounce">Today</span>
-                        )}
-                        <div 
-                          className={`w-full rounded-t-lg transition-all duration-500 cursor-pointer ${
-                            item.isToday ? 'bg-brand-green' : 'bg-brand-green-light hover:bg-brand-green/70'
-                          }`}
-                          style={{ height: `${(item.value / 13000) * 100}%` }}
-                        ></div>
-                        <span className="text-[10px] font-bold font-mono text-text-muted">{item.day}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* B. Service Demand Progress Bars */}
-                <div className="lg:col-span-5 bg-white border border-card-border rounded-xl p-5 shadow-xs flex flex-col justify-between h-[280px]">
-                  <div className="flex justify-between items-center mb-3">
-                    <div>
-                      <h3 className="font-display font-bold text-sm text-text-primary">Service Demand by Category</h3>
-                      <p className="text-2xs text-text-muted font-semibold mt-0.5">Most requested cooperative categories</p>
-                    </div>
-                    <span className="text-[10px] font-bold text-success-green bg-success-green-light px-2 py-0.5 rounded-md uppercase tracking-wider font-mono">Real-time</span>
-                  </div>
-
-                  <div className="space-y-4 flex-1 flex flex-col justify-center">
-                    {[
-                      { label: "Water Tanker", val: 42, icon: "tanker" },
-                      { label: "Fertilizer Delivery", val: 28, icon: "seed" },
-                      { label: "Machinery & Tractor Rental", val: 20, icon: "tractor" },
-                      { label: "Tractor & Tool Repair", val: 10, icon: "mechanic" }
-                    ].map((dem, idx) => (
-                      <div key={idx} className="space-y-1.5">
-                        <div className="flex justify-between text-2xs font-bold text-text-secondary">
-                          <span className="flex items-center gap-1.5">
-                            {drawIcon(dem.icon, "w-4 h-4 text-brand-green")}
-                            {dem.label}
-                          </span>
-                          <span className="font-mono text-brand-green">{dem.val}%</span>
-                        </div>
-                        <div className="w-full bg-light-bg h-2.5 rounded-full overflow-hidden border border-slate-100">
-                          <div className="bg-brand-green h-full rounded-full transition-all duration-700" style={{ width: `${dem.val}%` }}></div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
                 </div>
 
               </div>
@@ -962,38 +809,24 @@ export default function App() {
           {/* VIEW 2: REQUEST PROCESSING (WHATSAPP SIMULATOR) */}
           {activeView === "processing" && (
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-fadeIn">
-              
-              {/* WhatsApp Interface Mockup */}
               <div className="lg:col-span-7 bg-white border border-card-border rounded-xl flex flex-col h-[520px] shadow-sm">
-                
-                {/* Chat Header */}
                 <div className="p-4 bg-brand-green text-white rounded-t-xl flex items-center justify-between shadow-sm flex-shrink-0">
                   <div className="flex items-center gap-3">
                     <div className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center font-bold text-lg">🤖</div>
                     <div>
                       <h4 className="text-xs font-bold">TripBlock AI WhatsApp Assist</h4>
-                      <p className="text-[9px] text-brand-green-light font-semibold">Online • Conversational NLU Bot</p>
+                      <p className="text-[9px] text-brand-green-light font-semibold">Online • Conversational Bot</p>
                     </div>
                   </div>
-                  <button 
-                    onClick={triggerChat} 
-                    className="text-2xs bg-brand-green-hover hover:bg-brand-green-hover/75 px-3 py-1.5 rounded-lg border border-white/20 font-bold tracking-wider"
-                  >
-                    RESTART FLOW
-                  </button>
+                  <button onClick={triggerChat} className="text-2xs bg-brand-green-hover hover:bg-brand-green-hover/75 px-3 py-1.5 rounded-lg border border-white/20 font-bold tracking-wider">RESTART FLOW</button>
                 </div>
 
-                {/* Messages Panel */}
                 <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50">
                   {chatMessages.map((msg, i) => (
                     <div key={i} className={`flex ${msg.sender === 'farmer' ? 'justify-start' : 'justify-end'}`}>
                       <div className={`max-w-[75%] p-3.5 rounded-xl text-xs font-medium leading-relaxed ${
-                        msg.sender === 'farmer' 
-                          ? 'bg-white text-text-primary rounded-tl-none border border-slate-200 shadow-2xs' 
-                          : 'bg-brand-green text-white rounded-tr-none shadow-2xs'
-                      }`}>
-                        {msg.text}
-                      </div>
+                        msg.sender === 'farmer' ? 'bg-white text-text-primary rounded-tl-none border border-slate-200 shadow-2xs' : 'bg-brand-green text-white rounded-tr-none shadow-2xs'
+                      }`}>{msg.text}</div>
                     </div>
                   ))}
                   {chatTyping && (
@@ -1008,7 +841,6 @@ export default function App() {
                   )}
                 </div>
 
-                {/* Waveform Speech-to-Text Sim */}
                 <div className="p-4 bg-white border-t border-card-border flex items-center justify-between rounded-b-xl flex-shrink-0">
                   <div className="space-y-1">
                     <div className="text-[10px] text-text-muted font-bold uppercase tracking-wider font-mono">Sarvam voice transcription (Hinglish/Hindi)</div>
@@ -1018,8 +850,6 @@ export default function App() {
                       <div className="text-xs text-text-muted italic">Simulating farmer audio note processing...</div>
                     )}
                   </div>
-                  
-                  {/* Waveform Bars animation */}
                   <div className="flex items-center gap-1 px-2">
                     <div className="w-1 h-6 bg-brand-green rounded-full waveform-bar"></div>
                     <div className="w-1 h-10 bg-brand-green rounded-full waveform-bar" style={{animationDelay:'0.3s'}}></div>
@@ -1030,10 +860,7 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Entity Extraction Panel */}
               <div className="lg:col-span-5 space-y-6">
-                
-                {/* JSON Output Container */}
                 <div className="bg-white border border-card-border rounded-xl p-5 h-[250px] flex flex-col shadow-xs">
                   <div className="flex justify-between items-center mb-3">
                     <h3 className="text-2xs text-text-muted uppercase tracking-wider font-bold">Extracted JSON Metadata</h3>
@@ -1043,7 +870,7 @@ export default function App() {
                     <code>
                       {JSON.stringify({
                         service: "tractor_rental",
-                        land_area: "3 acres",
+                        quantity: "3 Acres (Harvesting/Ploughing)",
                         requested_time: "07:00 AM",
                         location: "Village Rahatgarh",
                         language: "Hindi (Voice)",
@@ -1054,13 +881,12 @@ export default function App() {
                   </pre>
                 </div>
 
-                {/* Validation Checklist */}
                 <div className="bg-white border border-card-border rounded-xl p-5 shadow-xs">
                   <h3 className="text-2xs text-text-muted uppercase tracking-wider font-bold mb-3">Autofill Field Checklist</h3>
                   <div className="space-y-2.5 text-xs font-semibold text-text-secondary">
                     {[
                       { label: "Cooperative Service Identified", desc: "Tractor Rental", valid: jsonIndex > 40 },
-                      { label: "Land Acreage Extracted", desc: "3 Acres", valid: jsonIndex > 75 },
+                      { label: "Requirement Quantity Parsed", desc: "3 Acres", valid: jsonIndex > 75 },
                       { label: "Delivery/Rental Timeframe", desc: "07:00 AM", valid: jsonIndex > 110 },
                       { label: "Source Village Identified", desc: "Rahatgarh Village", valid: jsonIndex > 150 }
                     ].map((ch, idx) => (
@@ -1070,28 +896,22 @@ export default function App() {
                           {ch.valid && <span className="text-[10px] text-text-muted font-mono">{ch.desc}</span>}
                         </div>
                         {ch.valid ? (
-                          <span className="text-success-green font-bold flex items-center gap-1 bg-success-green-light px-2 py-0.5 rounded text-[10px] border border-success-green/20">
-                            ✓ Parsed
-                          </span>
+                          <span className="text-success-green font-bold flex items-center gap-1 bg-success-green-light px-2 py-0.5 rounded text-[10px] border border-success-green/20">✓ Parsed</span>
                         ) : (
-                          <span className="text-text-muted font-bold flex items-center gap-1 bg-slate-100 px-2 py-0.5 rounded text-[10px]">
-                            Waiting...
-                          </span>
+                          <span className="text-text-muted font-bold flex items-center gap-1 bg-slate-100 px-2 py-0.5 rounded text-[10px]">Waiting...</span>
                         )}
                       </div>
                     ))}
                   </div>
                 </div>
               </div>
-
             </div>
           )}
 
           {/* ========================================================================= */}
-          {/* VIEW 3: TRIP BLOCKS SPECIFIC */}
+          {/* VIEW 3: TRIP BLOCKS */}
           {activeView === "tripblocks" && (
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-fadeIn">
-              
               <div className="lg:col-span-7 space-y-4">
                 <div className="bg-white border border-card-border p-4.5 rounded-xl shadow-xs">
                   <h3 className="font-display font-bold text-sm text-text-primary">Active Aggregations & Routing</h3>
@@ -1099,13 +919,9 @@ export default function App() {
                 </div>
 
                 {tripBlocks.map(b => (
-                  <div 
-                    key={b.id} 
-                    onClick={() => setSelectedBlock(b)} 
-                    className={`p-5 bg-white border rounded-xl cursor-pointer transition-all shadow-xs ${
-                      selectedBlock.id === b.id ? 'border-brand-green ring-1 ring-brand-green/30' : 'border-card-border hover:border-brand-green/35'
-                    }`}
-                  >
+                  <div key={b.id} onClick={() => setSelectedBlock(b)} className={`p-5 bg-white border rounded-xl cursor-pointer transition-all shadow-xs ${
+                    selectedBlock.id === b.id ? 'border-brand-green ring-1 ring-brand-green/30' : 'border-card-border hover:border-brand-green/35'
+                  }`}>
                     <div className="flex justify-between items-center border-b border-card-border pb-3 mb-3">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-lg bg-brand-green-light text-brand-green flex items-center justify-center">
@@ -1117,9 +933,7 @@ export default function App() {
                         </div>
                       </div>
                       <span className={`px-2.5 py-1 text-2xs rounded-full border font-bold uppercase tracking-wider ${
-                        b.status === 'live' 
-                          ? 'bg-success-green-light text-success-green border-success-green/20' 
-                          : 'bg-warning-orange-light text-warning-orange border-warning-orange/20'
+                        b.status === 'live' ? 'bg-success-green-light text-success-green border-success-green/20' : 'bg-warning-orange-light text-warning-orange border-warning-orange/20'
                       }`}>{b.status}</span>
                     </div>
                     
@@ -1134,18 +948,13 @@ export default function App() {
                     </div>
                     
                     <div className="flex justify-between items-center border-t border-card-border pt-4 mt-3">
-                      <div className="text-sm font-bold font-display">
-                        ₹{b.costSplit.split} <span className="text-2xs font-normal text-text-muted">per farmer</span>
-                      </div>
-                      <span className="bg-brand-green text-white px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider">
-                        SAVED {b.saved}
-                      </span>
+                      <div className="text-sm font-bold font-display">₹{b.costSplit.split} <span className="text-2xs font-normal text-text-muted">per farmer</span></div>
+                      <span className="bg-brand-green text-white px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider font-mono">SAVED {b.saved}</span>
                     </div>
                   </div>
                 ))}
               </div>
 
-              {/* Route clustering map view */}
               <div className="lg:col-span-5 bg-white border border-card-border rounded-xl p-5 h-[480px] flex flex-col justify-between shadow-xs">
                 <div>
                   <h3 className="font-display font-bold text-sm text-text-primary">Cluster Proximity Map</h3>
@@ -1154,42 +963,24 @@ export default function App() {
                 
                 <div className="flex-1 bg-slate-50 border border-slate-200 rounded-xl relative overflow-hidden flex items-center justify-center my-4">
                   <svg className="w-full h-full" viewBox="0 0 300 200">
-                    {/* Concentric rings to show cluster limits */}
                     <circle cx="150" cy="100" r="35" fill="none" stroke="#E2E8F0" strokeWidth="2" strokeDasharray="3,3" />
                     <circle cx="150" cy="100" r="70" fill="none" stroke="#E2E8F0" strokeWidth="2" strokeDasharray="3,3" />
                     <circle cx="150" cy="100" r="105" fill="none" stroke="#E2E8F0" strokeWidth="2" strokeDasharray="3,3" />
-                    
-                    {/* Clustered Farmers Connections */}
                     <polyline points="150,100 120,60 180,50 150,150 150,100" fill="none" stroke="#2E7D32" strokeWidth="2.5" strokeDasharray="5,3" />
-                    
-                    {/* Hub Pin */}
                     <circle cx="150" cy="100" r="7" fill="#1B5E20" />
                     <circle cx="150" cy="100" r="18" fill="none" stroke="#2E7D32" strokeWidth="1.5" className="animate-sonar" />
-                    
-                    {/* Farmer cluster markers */}
                     <circle cx="120" cy="60" r="4.5" fill="#2E7D32" />
                     <circle cx="180" cy="50" r="4.5" fill="#2E7D32" />
                     <circle cx="150" cy="150" r="4.5" fill="#2E7D32" />
                   </svg>
                   
-                  {/* Legend Overlay */}
                   <div className="absolute top-2 left-2 bg-white/95 border border-card-border p-2 rounded text-[9px] font-semibold shadow-xs">
-                    <div className="flex items-center gap-1.5 text-text-primary">
-                      <span className="w-2.5 h-2.5 rounded-full bg-brand-green"></span>
-                      Cluster Hub Center
-                    </div>
-                    <div className="flex items-center gap-1.5 text-text-primary mt-1">
-                      <span className="w-2.5 h-2.5 rounded-full bg-accent-green"></span>
-                      Grouped Farmers
-                    </div>
+                    <div className="flex items-center gap-1.5 text-text-primary"><span className="w-2.5 h-2.5 rounded-full bg-brand-green"></span>Cluster Hub Center</div>
+                    <div className="flex items-center gap-1.5 text-text-primary mt-1"><span className="w-2.5 h-2.5 rounded-full bg-accent-green"></span>Grouped Farmers</div>
                   </div>
                 </div>
-
-                <div className="text-2xs text-text-muted font-bold text-center leading-normal">
-                  Dynamic routing aggregates multiple farm orders into a single logistical pass, reducing carbon footprint by 35%.
-                </div>
+                <div className="text-2xs text-text-muted font-bold text-center leading-normal">Dynamic routing aggregates multiple farm orders into a single logistical pass, reducing carbon footprint by 35%.</div>
               </div>
-
             </div>
           )}
 
@@ -1197,8 +988,6 @@ export default function App() {
           {/* VIEW 4: PROVIDER MATCHING EXPANDED */}
           {activeView === "matching" && (
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-fadeIn">
-              
-              {/* Blocks selector */}
               <div className="lg:col-span-4 bg-white border border-card-border rounded-xl p-5 shadow-xs flex flex-col h-[480px]">
                 <h3 className="font-display font-bold text-sm text-text-primary mb-3">Select Active Trip Block</h3>
                 <p className="text-2xs text-text-muted font-semibold mb-4">Choose a cooperative aggregate block to view bids and matches</p>
@@ -1207,13 +996,9 @@ export default function App() {
                   {tripBlocks.map(b => {
                     const isSelected = selectedBlock.id === b.id;
                     return (
-                      <div 
-                        key={b.id} 
-                        onClick={() => setSelectedBlock(b)} 
-                        className={`p-4 rounded-xl border cursor-pointer transition-all ${
-                          isSelected ? 'border-brand-green bg-brand-green-light/20 shadow-2xs font-bold' : 'border-card-border hover:border-brand-green/30'
-                        }`}
-                      >
+                      <div key={b.id} onClick={() => setSelectedBlock(b)} className={`p-4 rounded-xl border cursor-pointer transition-all ${
+                        isSelected ? 'border-brand-green bg-brand-green-light/20 shadow-2xs font-bold' : 'border-card-border hover:border-brand-green/30'
+                      }`}>
                         <div className="flex justify-between items-center">
                           <span className="font-mono text-xs font-bold text-brand-green">{b.id}</span>
                           <span className={`px-2 py-0.5 rounded-full text-[8px] font-bold uppercase ${
@@ -1221,8 +1006,7 @@ export default function App() {
                           }`}>{b.status}</span>
                         </div>
                         <div className="text-xs font-semibold text-text-primary mt-2 flex items-center gap-1.5">
-                          {drawIcon(b.icon, "w-4.5 h-4.5 text-brand-green")}
-                          {b.service}
+                          {drawIcon(b.icon, "w-4.5 h-4.5 text-brand-green")}{b.service}
                         </div>
                         <div className="flex justify-between text-[10px] text-text-muted mt-2 font-bold">
                           <span>{b.farmers}</span>
@@ -1234,7 +1018,6 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Match calculations console */}
               <div className="lg:col-span-5 bg-white border border-card-border rounded-xl p-5 space-y-4 shadow-xs flex flex-col h-[480px]">
                 <div>
                   <h3 className="font-display font-bold text-sm text-text-primary">Recommended Providers</h3>
@@ -1245,50 +1028,24 @@ export default function App() {
                   {PROVIDERS[selectedBlock.id]?.map((p, idx) => {
                     const isApproved = approvedProviders[selectedBlock.id] === p.name || selectedBlock.provider === p.name;
                     return (
-                      <div 
-                        key={p.name} 
-                        className={`p-4 bg-white border rounded-xl flex justify-between items-center transition-all ${
-                          isApproved 
-                            ? 'border-success-green bg-success-green-light/20' 
-                            : idx === 0 
-                            ? 'border-brand-green bg-brand-green-light/10 shadow-2xs' 
-                            : 'border-card-border hover:border-brand-green/30'
-                        }`}
-                      >
+                      <div key={p.name} className={`p-4 bg-white border rounded-xl flex justify-between items-center transition-all ${
+                        isApproved ? 'border-success-green bg-success-green-light/20' : idx === 0 ? 'border-brand-green bg-brand-green-light/10 shadow-2xs' : 'border-card-border hover:border-brand-green/30'
+                      }`}>
                         <div>
                           <div className="flex items-center gap-2">
                             <span className="text-xs font-bold text-text-primary">{p.name}</span>
-                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-brand-green-light text-brand-green">
-                              {p.score}% Match
-                            </span>
+                            {idx === 0 && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-brand-green text-white uppercase tracking-wider">Recommended</span>}
                           </div>
-                          
                           <div className="text-[10px] text-text-muted font-bold mt-1.5 space-y-1">
-                            <div className="flex items-center gap-1.5">
-                              <span className="text-warning-orange">★ {p.rating}</span>
-                              <span>•</span>
-                              <span>{p.reviews} reviews</span>
-                            </div>
-                            <div className="flex items-center gap-1.5 text-text-secondary">
-                              <span>Distance: {p.dist}</span>
-                              <span>•</span>
-                              <span>{p.availability}</span>
-                            </div>
+                            <div className="flex items-center gap-1.5"><span className="text-warning-orange">★ {p.rating}</span><span>•</span><span>{p.reviews} reviews</span></div>
+                            <div className="flex items-center gap-1.5 text-text-secondary"><span>Distance: {p.dist}</span><span>•</span><span>{p.availability}</span></div>
                           </div>
                         </div>
-
                         <div className="flex flex-col gap-2">
                           {!isApproved ? (
-                            <button 
-                              onClick={() => handleApprove(selectedBlock.id, p.name)} 
-                              className="px-4.5 py-2 bg-brand-green hover:bg-brand-green-hover text-white text-xs font-bold rounded-lg transition-colors shadow-2xs"
-                            >
-                              Assign
-                            </button>
+                            <button onClick={() => handleApprove(selectedBlock.id, p.name)} className="px-4.5 py-2 bg-brand-green hover:bg-brand-green-hover text-white text-xs font-bold rounded-lg transition-colors shadow-2xs">Forward Qty</button>
                           ) : (
-                            <span className="px-3 py-1.5 text-success-green text-xs font-bold bg-white rounded-lg border border-success-green/20">
-                              Assigned ✓
-                            </span>
+                            <span className="px-3 py-1.5 text-success-green text-xs font-bold bg-white rounded-lg border border-success-green/20">Forwarded ✓</span>
                           )}
                         </div>
                       </div>
@@ -1297,55 +1054,37 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Dispatch Action console */}
               <div className="lg:col-span-3 bg-white border border-card-border rounded-xl p-5 flex flex-col justify-between h-[480px] shadow-xs">
                 <div>
                   <h3 className="font-display font-bold text-sm text-text-primary mb-3">Operator Dispatch Panel</h3>
                   <p className="text-2xs text-text-muted font-semibold mb-4">Finalize dynamic block vehicle dispatch allocation</p>
-                  
                   <div className="text-xs text-text-secondary space-y-3 bg-light-bg border border-card-border p-4 rounded-xl font-semibold">
                     <div>Block ID: <span className="text-text-primary font-bold">{selectedBlock.id}</span></div>
                     <div>Service: <span className="text-text-primary">{selectedBlock.service}</span></div>
                     <div>Group Size: <span className="text-text-primary">{selectedBlock.farmers}</span></div>
+                    <div>Requirements Quantity: <div className="text-[11px] font-mono text-brand-green font-bold mt-1">{selectedBlock.quantity}</div></div>
                     <div>Routing Villages: <div className="text-[10px] font-mono text-brand-green mt-1">{selectedBlock.villages.join(" ↔ ")}</div></div>
-                    <div className="pt-2 border-t border-card-border">
-                      Est. Savings: <span className="text-success-green font-bold text-sm">{selectedBlock.saved}</span>
-                    </div>
+                    <div className="pt-2 border-t border-card-border">Est. Savings: <span className="text-success-green font-bold text-sm">{selectedBlock.saved}</span></div>
                   </div>
                 </div>
-
                 <div className="space-y-3">
-                  <button 
-                    onClick={() => {
-                      if (PROVIDERS[selectedBlock.id]?.[0]) {
-                        handleApprove(selectedBlock.id, PROVIDERS[selectedBlock.id][0].name);
-                      }
-                    }} 
-                    className="w-full py-3 bg-brand-green hover:bg-brand-green-hover text-white font-bold text-xs rounded-lg shadow-sm transition-all uppercase tracking-wider"
-                  >
-                    Confirm Dispatch Match
-                  </button>
-                  <p className="text-[9px] text-text-muted text-center font-bold">
-                    This will alert the provider to dispatch the vehicle to the village nodes.
-                  </p>
+                  <button onClick={() => { if (PROVIDERS[selectedBlock.id]?.[0]) handleApprove(selectedBlock.id, PROVIDERS[selectedBlock.id][0].name); }} className="w-full py-3 bg-brand-green hover:bg-brand-green-hover text-white font-bold text-xs rounded-lg shadow-sm transition-all uppercase tracking-wider">Confirm Dispatch Match</button>
+                  <p className="text-[9px] text-text-muted text-center font-bold">This will alert the provider to dispatch the vehicle to the village nodes.</p>
                 </div>
               </div>
-
             </div>
           )}
 
           {/* ========================================================================= */}
-          {/* VIEW 5: IMPACT & INSIGHTS (CHARTS PANEL) */}
+          {/* VIEW 5: IMPACT & INSIGHTS */}
           {activeView === "insights" && (
             <div className="space-y-6 animate-fadeIn">
-              
-              {/* Extended Metrics Strip */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {[
-                  { label: "Total Farmers Served", value: 1247, sub: "Across all districts", isGreen: true },
-                  { label: "Cooperative Trips Created", value: 389, sub: "Combined route runs", isGreen: true },
-                  { label: "Accumulated Savings", value: 482500, sub: "Back to local farmers", prefix: "₹", isGreen: true },
-                  { label: "Active Covered Villages", value: 34, sub: "Hub distribution spread", isGreen: false }
+                  { label: "Total Farmers Served", value: 1247, sub: "Across all districts" },
+                  { label: "Cooperative Trips Created", value: 389, sub: "Combined route runs" },
+                  { label: "Accumulated Savings", value: 482500, sub: "Back to local farmers", prefix: "₹" },
+                  { label: "Active Covered Villages", value: 34, sub: "Hub distribution spread" }
                 ].map((insight, idx) => (
                   <div key={idx} className="p-4 bg-white border border-card-border rounded-xl shadow-xs">
                     <div className="text-2xs text-text-muted font-bold uppercase tracking-wider">{insight.label}</div>
@@ -1357,126 +1096,74 @@ export default function App() {
                 ))}
               </div>
 
-              {/* Visualized charts */}
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                
-                {/* Savings Line graph visualization */}
                 <div className="lg:col-span-8 bg-white border border-card-border rounded-xl p-5 h-[340px] flex flex-col shadow-xs">
-                  <div className="flex justify-between items-center mb-4">
-                    <div>
-                      <h3 className="font-display font-bold text-sm text-text-primary">Monthly Savings Accumulation Progress (₹)</h3>
-                      <p className="text-2xs text-text-muted font-semibold mt-0.5">Year to date progression of rural cooperative storage & transit savings</p>
-                    </div>
-                  </div>
-                  
+                  <h3 className="font-display font-bold text-sm text-text-primary mb-4">Monthly Savings Accumulation Progress (₹)</h3>
                   <div className="flex-1 bg-slate-50 border border-slate-200 rounded-xl relative p-4 flex items-end">
-                    {/* SVG Line Graph representation */}
                     <svg className="w-full h-full" viewBox="0 0 500 150">
-                      {/* Grid guidelines */}
                       <line x1="0" y1="130" x2="500" y2="130" stroke="#E2E8F0" strokeWidth="1" />
                       <line x1="0" y1="90" x2="500" y2="90" stroke="#E2E8F0" strokeWidth="1" strokeDasharray="3,3" />
                       <line x1="0" y1="50" x2="500" y2="50" stroke="#E2E8F0" strokeWidth="1" strokeDasharray="3,3" />
-                      <line x1="0" y1="10" x2="500" y2="10" stroke="#E2E8F0" strokeWidth="1" strokeDasharray="3,3" />
-
-                      {/* Cumulative Line Path */}
-                      <path 
-                        d="M 20 130 C 80 110, 150 70, 220 55 C 290 40, 380 25, 480 12" 
-                        fill="none" 
-                        stroke="#2E7D32" 
-                        strokeWidth="3.5" 
-                      />
-                      
-                      {/* Nodes on graph */}
+                      <path d="M 20 130 C 80 110, 150 70, 220 55 C 290 40, 380 25, 480 12" fill="none" stroke="#2E7D32" strokeWidth="3.5" />
                       <circle cx="20" cy="130" r="5" fill="#2E7D32" stroke="#FFFFFF" strokeWidth="2" />
                       <circle cx="220" cy="55" r="5" fill="#2E7D32" stroke="#FFFFFF" strokeWidth="2" />
                       <circle cx="480" cy="12" r="5" fill="#2E7D32" stroke="#FFFFFF" strokeWidth="2" />
-
-                      <text x="20" y="145" className="text-[8px] font-bold fill-slate-500 font-sans">Jan</text>
-                      <text x="220" y="145" className="text-[8px] font-bold fill-slate-500 font-sans">Mar</text>
-                      <text x="470" y="145" className="text-[8px] font-bold fill-slate-500 font-sans">Jun</text>
+                      <text x="20" y="145" className="text-[8px] font-bold fill-slate-500">Jan</text>
+                      <text x="220" y="145" className="text-[8px] font-bold fill-slate-500">Mar</text>
+                      <text x="470" y="145" className="text-[8px] font-bold fill-slate-500">Jun</text>
                     </svg>
-
-                    <div className="absolute top-3 right-3 bg-white p-2.5 rounded border border-card-border text-[9px] font-bold text-brand-green shadow-2xs">
-                      📈 Savings Peak: ₹482.5k
-                    </div>
+                    <div className="absolute top-3 right-3 bg-white p-2.5 rounded border border-card-border text-[9px] font-bold text-brand-green shadow-2xs">📈 Savings Peak: ₹482.5k</div>
                   </div>
                 </div>
 
-                {/* Donut demand segments */}
                 <div className="lg:col-span-4 bg-white border border-card-border rounded-xl p-5 flex flex-col justify-between h-[340px] shadow-xs">
                   <div>
                     <h3 className="font-display font-bold text-sm text-text-primary">Cooperative Demand breakdown</h3>
                     <p className="text-2xs text-text-muted font-semibold mt-0.5">Distribution of service requests</p>
                   </div>
-                  
                   <div className="flex-1 flex justify-center items-center my-4">
                     <svg className="w-32 h-32" viewBox="0 0 100 100">
-                      {/* Tractor segment (35%) */}
                       <circle cx="50" cy="50" r="38" fill="none" stroke="#2E7D32" strokeWidth="10" strokeDasharray="76.9 161.7" />
-                      {/* Water Tanker segment (28%) */}
                       <circle cx="50" cy="50" r="38" fill="none" stroke="#81C784" strokeWidth="10" strokeDasharray="61.5 177.1" strokeDashoffset="-76.9" />
-                      {/* Repair mechanic & other segments (37%) */}
                       <circle cx="50" cy="50" r="38" fill="none" stroke="#E2E8F0" strokeWidth="10" strokeDasharray="81.3 157.3" strokeDashoffset="-138.4" />
-                      
                       <circle cx="50" cy="50" r="28" fill="#FFFFFF" />
-                      <text x="50" y="54" textAnchor="middle" className="text-[9px] font-bold fill-brand-green font-sans">Trips</text>
+                      <text x="50" y="54" textAnchor="middle" className="text-[9px] font-bold fill-brand-green">Trips</text>
                     </svg>
                   </div>
-                  
                   <div className="text-[9px] font-bold font-mono text-text-secondary flex justify-around border-t border-card-border pt-3.5">
-                    <div className="flex items-center gap-1">
-                      <span className="w-2.5 h-2.5 bg-[#2E7D32] rounded"></span>Tractors (35%)
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <span className="w-2.5 h-2.5 bg-[#81C784] rounded"></span>Tankers (28%)
-                    </div>
+                    <div className="flex items-center gap-1"><span className="w-2.5 h-2.5 bg-[#2E7D32] rounded"></span>Tractors (35%)</div>
+                    <div className="flex items-center gap-1"><span className="w-2.5 h-2.5 bg-[#81C784] rounded"></span>Tankers (28%)</div>
                   </div>
                 </div>
-
               </div>
-
             </div>
           )}
 
           {/* ========================================================================= */}
-          {/* VIEW 6: LIVE SYSTEM OPERATIONS LOGS FEED */}
+          {/* VIEW 6: LIVE FEED */}
           {activeView === "livefeed" && (
             <div className="space-y-6 animate-fadeIn">
-              
               <div className="flex justify-between items-center bg-white border border-card-border p-4.5 rounded-xl shadow-xs">
                 <div>
                   <h3 className="font-display font-bold text-sm text-text-primary">System Audit Log & Live Feed</h3>
                   <p className="text-2xs text-text-muted font-mono mt-0.5">Real-time diagnostics and dispatch activities</p>
                 </div>
-                <button 
-                  onClick={() => setLiveScroll(!liveScroll)} 
-                  className={`px-4.5 py-2 rounded-lg text-xs font-bold border transition-colors ${
-                    liveScroll 
-                      ? 'bg-brand-green-light border-brand-green/30 text-brand-green' 
-                      : 'bg-danger-red-light border-danger-red/35 text-danger-red'
-                  }`}
-                >
-                  {liveScroll ? '● STREAMING LIVE' : '⏸ STREAM PAUSED'}
-                </button>
+                <button onClick={() => setLiveScroll(!liveScroll)} className={`px-4.5 py-2 rounded-lg text-xs font-bold border transition-colors ${
+                  liveScroll ? 'bg-brand-green-light border-brand-green/30 text-brand-green' : 'bg-danger-red-light border-danger-red/35 text-danger-red'
+                }`}>{liveScroll ? '● STREAMING LIVE' : '⏸ STREAM PAUSED'}</button>
               </div>
 
               <div className="space-y-3 overflow-y-auto max-h-[460px] pr-1">
                 {logs.map((log, index) => (
-                  <div 
-                    key={index} 
-                    className="p-4 bg-white border border-card-border rounded-xl flex items-center justify-between border-l-4 border-l-brand-green shadow-2xs hover:shadow-xs transition-shadow"
-                  >
+                  <div key={index} className="p-4 bg-white border border-card-border rounded-xl flex items-center justify-between border-l-4 border-l-brand-green shadow-2xs hover:shadow-xs transition-shadow">
                     <div className="flex items-center gap-4.5">
                       <span className="text-xs font-mono text-text-muted font-bold">{log.time}</span>
                       <span className="text-xs font-semibold text-text-primary">{log.text}</span>
                     </div>
-                    <span className="text-[9px] font-mono bg-light-bg border border-card-border px-2.5 py-0.5 rounded-lg text-text-muted uppercase font-bold tracking-wider">
-                      {log.tag}
-                    </span>
+                    <span className="text-[9px] font-mono bg-light-bg border border-card-border px-2.5 py-0.5 rounded-lg text-text-muted uppercase font-bold tracking-wider">{log.tag}</span>
                   </div>
                 ))}
               </div>
-
             </div>
           )}
 
